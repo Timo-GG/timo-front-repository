@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
+import pxtoRem from 'tailwindcss-preset-px-to-rem';
 module.exports = {
   content: ['./src/**/*.{js,jsx,ts,tsx}'],
+  presets: [pxtoRem],
   theme: {
     extend: {
       fontFamily: {
@@ -15,6 +17,16 @@ module.exports = {
         'primary-lightgray': '#DDDDDD',
         'primary-white': '#FFFFFF',
         'primary-green': '#00FFD0',
+        'tier-iron': '#7B6663',
+        'tier-bronze': '#A38376',
+        'tier-silver': '#ABB4B9',
+        'tier-gold': '#E7CC92',
+        'tier-platinum': '#216977',
+        'tier-emerald': '#50DA8C',
+        'tier-diamond': '#376BD9',
+        'tier-master': '#D076EA',
+        'tier-grandmaster': '#E67529',
+        'tier-challenger': '#EEFDFF',
       },
       fontSize: {
         'title-1-24-regular': [
