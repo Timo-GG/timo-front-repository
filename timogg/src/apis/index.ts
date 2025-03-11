@@ -9,7 +9,7 @@ declare module 'axios' {
 }
 
 export const axiosInstance = axios.create({
-  baseURL: '/api/v1',
+  baseURL: 'http://3.34.183.7:8080/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },

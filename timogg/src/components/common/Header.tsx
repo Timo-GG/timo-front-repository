@@ -66,8 +66,8 @@ function Menu() {
     { to: '/', label: '홈' },
     { to: '/champion-analysis', label: '챔피언 분석' },
     { to: '/champion-tier', label: '챔피언 티어' },
-    { to: '/party-finding', label: '파티찾기' },
-    { to: '/community', label: '커뮤니티' },
+    { to: '/match', label: '파티찾기' },
+    { to: '/board', label: '커뮤니티' },
   ];
 
   return (
