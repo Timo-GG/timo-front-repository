@@ -30,7 +30,7 @@ const MatchSidebar = ({ socket }: { socket: ReturnType<typeof io> | null }) => {
           gameMode: matchOption.queueType,
           playPosition: matchOption.myPosition,
           playCondition: matchOption.gameStatus,
-          voiceChat: 'ENABLED',
+          voiceChat: matchOption.mic,
           playStyle: matchOption.playStyle,
         },
         duoInfo: {

@@ -6,8 +6,8 @@ import MatchingPlayerTableHeader from '../components/match/MatchingPlayerTableHe
 import MatchingPlayerTableItem from '../components/match/MatchingPlayerTableItem';
 import io from 'socket.io-client';
 
-import Chat from '../components/chat/Chat';
 import useAuthStore from '../storage/useAuthStore';
+import { Chat } from '../components/chat/Chat';
 let matchingPlayers = Array.from({ length: 20 }, (_, i) => ({
   playerName: `Player${i + 1}`,
   playerTag: `#KR1`,
@@ -45,6 +45,7 @@ const MatchPage = () => {
       const newSocket = io('ws://3.34.183.7:8085?token=' + token, {
         reconnectionAttempts: 5, // 재연결 시도 횟수 설정
         reconnectionDelay: 2000, // 재연결 대기 시간 (2초)
+        transports: ['websocket'],
       });
 
       newSocket.on('connect', () => {
@@ -82,7 +83,7 @@ const MatchPage = () => {
         </div>
         {/* 매칭중인 플레이어 헤더 */}
         {/* todo: 듀오가 시작됐을때 화면에 표시 */}
-        <Chat />
+        <Chat socket={socketRef.current} />
         <MatchingPlayerHeader />
         <div className="w-874 px-10 bg-secondary-realdarkgray flex flex-col items-center">
           {/* 매칭중인 플레이어 테이블 */}

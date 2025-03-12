@@ -182,6 +182,7 @@ const IconBox = ({ label, iconType, type, onClick, state }: IconBoxProps) => {
   let positionLabel = ['상관없음', '탑', '정글', '미드', '원딜', '서폿'];
   let positionValue = ['ANY', 'TOP', 'JUNGLE', 'MID', 'BOTTOM', 'SUPPORT'];
   let micLabel = ['마이크 ON', '마이크 OFF', '헤드셋'];
+  let micValue = ['ENABLED', 'DISABLED', 'HEADSET'];
   let micIcon = [<MikeIcon />, <MikeMuteIcon />, <HeadsetIcon />];
   return (
     <div className="flex-col flex gap-8">
@@ -209,9 +210,9 @@ const IconBox = ({ label, iconType, type, onClick, state }: IconBoxProps) => {
             <div
               key={index}
               className={`px-2 py-2 flex justify-center items-center ${onHover} ${
-                state[type] === micLabel[index] ? 'bg-secondary-green' : ''
+                state[type] === micValue[index] ? 'bg-secondary-green' : ''
               }`}
-              onClick={() => onClick(type, micLabel[index])}
+              onClick={() => onClick(type, micValue[index])}
             >
               {icon}
             </div>
