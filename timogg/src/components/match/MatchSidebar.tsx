@@ -5,8 +5,9 @@ import DuoFindStatus from './DuoFindStatus';
 import DuoMatchedStatus from './DuoMatchedStatus';
 import DuoFindStartStatus from './DuoFindStartStatus';
 import DuoFindingStatus from './DuoFindingStatus';
+import { io } from 'socket.io-client';
 
-const MatchSidebar = () => {
+const MatchSidebar = ({ socket }: { socket: ReturnType<typeof io> | null }) => {
   const [step, setStep] = useState(0);
   const [isMatched, setIsMatched] = useState(false);
   const [isMatchAccepted, setIsMatchAccepted] = useState(false);
@@ -20,6 +21,24 @@ const MatchSidebar = () => {
   };
 
   const onClickFindDuoBtn = () => {
+    const matchOption = JSON.parse(localStorage.getItem('matchOption')!);
+    if (matchOption && socket) {
+      console.log(matchOption);
+      socket.emit('match_start', {
+        userInfo: {
+          introduce: '팀워크 중요!',
+          gameMode: matchOption.queueType,
+          playPosition: matchOption.myPosition,
+          playCondition: matchOption.gameStatus,
+          voiceChat: 'ENABLED',
+          playStyle: matchOption.playStyle,
+        },
+        duoInfo: {
+          duoPlayPosition: matchOption.duoPosition,
+          duoPlayStyle: matchOption.duoStyle,
+        },
+      });
+    }
     setStep((prev: number) => 2);
   };
   const onClickMatchAccept = () => {
