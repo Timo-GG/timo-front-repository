@@ -1,25 +1,26 @@
-import React from 'react';
-import logo from './logo.svg';
-import './App.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import Router from './pages/Router.tsx';
+import Sidebar from './components/sidebars/Sidebar.tsx';
+import { BrowserRouter } from 'react-router-dom';
 
+let queryClient = new QueryClient();
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <div className="flex h-screen">
+          {/* 사이드바 (토글 가능) */}
+          <div className={`transition-width duration-300`}>
+            <Sidebar />
+          </div>
+
+          {/* 콘텐츠 영역 */}
+          <div>
+            <Router />
+          </div>
+        </div>
+      </BrowserRouter>
+    </QueryClientProvider>
   );
 }
 
