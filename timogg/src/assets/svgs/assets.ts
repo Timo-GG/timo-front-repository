@@ -18,7 +18,9 @@ import { ReactComponent as DropdownIcon } from './dropdown.svg';
 import { ReactComponent as SearchIcon } from './search.svg';
 import { ReactComponent as SendIcon } from './send.svg';
 import { ReactComponent as CopyIcon } from './copy.svg';
-
+import { ReactComponent as PictureIcon } from './picture.svg';
+import { ReactComponent as EyeIcon } from './eye.svg';
+import { ReactComponent as LikeIcon } from './like.svg';
 export {
   MikeIcon,
   MikeMuteIcon,
@@ -40,4 +42,7 @@ export {
   SearchIcon,
   SendIcon,
   CopyIcon,
+  PictureIcon,
+  EyeIcon,
+  LikeIcon,
 };
