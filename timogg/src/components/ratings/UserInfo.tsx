@@ -4,6 +4,8 @@ export interface UserInfoProps {
   country?: string;
   rank?: string;
   rankPercentage?: string;
+  duoId: number;
+  matchId: number;
 }
 
 function UserInfo({
@@ -12,6 +14,8 @@ function UserInfo({
   country,
   rank,
   rankPercentage,
+  duoId,
+  matchId,
 }: UserInfoProps) {
   return (
     <div className="flex items-center gap-[18px]">
@@ -45,6 +49,8 @@ UserInfo.defaultProps = {
   country: 'NA',
   rank: '0',
   rankPercentage: '0',
+  duoId: 0,
+  matchId: 0,
 };
 
 export default UserInfo;

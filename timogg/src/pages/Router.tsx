@@ -24,17 +24,15 @@ function Router() {
   }, [isLoggedIn]);
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/match" element={<MatchPage />} />
-        <Route path="/board" element={<BoardPage />} />
-        <Route path="/auth/callback/:provider" element={<AuthCallback />} />
-        <Route path="/api" element={<ApiTestPage />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/match" element={<MatchPage />} />
+      <Route path="/board" element={<BoardPage />} />
+      <Route path="/auth/callback/:provider" element={<AuthCallback />} />
+      <Route path="/api" element={<ApiTestPage />} />
+    </Routes>
   );
 }
 

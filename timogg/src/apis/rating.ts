@@ -7,15 +7,10 @@ interface CreateRatingApiBody {
   speech: string;
   skill: string;
   duoId: number;
+  matchId: number;
 }
-export async function createRatingApi({
-  ratingId,
-  body,
-}: {
-  ratingId: string;
-  body: CreateRatingApiBody;
-}) {
-  const response = await axiosInstance.post('/ratings/' + ratingId, body);
+export async function createRatingApi(body: CreateRatingApiBody) {
+  const response = await axiosInstance.post('/ratings', body);
   return response.data;
 }
 
@@ -26,7 +21,13 @@ export async function deleteRatingApi(ratingId: string) {
 }
 
 // 내 평점 조회
-export async function getRatingApi() {
+export async function getMyRatingApi() {
   const response = await axiosInstance.get('/ratings');
+  return response.data;
+}
+
+// 같이 플에이한 듀오 조회
+export async function getDuosListApi() {
+  const response = await axiosInstance.get('/ratings/duos');
   return response.data;
 }

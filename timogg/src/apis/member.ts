@@ -12,6 +12,18 @@ export const myInfo = async () => {
   }
 };
 
+export const getDuoInfo = async (id: string) => {
+  try {
+    const res = await axiosInstance.get(`/members/${id}`, {
+      withAuth: true,
+    });
+
+    return res.data.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const checkSummoner = async (gameName: string, tagLine: string) => {
   try {
     const res = await axiosInstance.get('/members/player/verify', {

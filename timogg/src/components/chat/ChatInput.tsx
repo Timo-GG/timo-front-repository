@@ -89,7 +89,7 @@ export default function ChatInput({ onClickEnter }: ChatInputProps) {
   };
 
   return (
-    <div className={`relative w-675`}>
+    <div className={`w-675`}>
       {isMenuOpen && (
         <QuickRepliesMenu
           quickReplies={quickReplies}
@@ -136,12 +136,12 @@ const QuickRepliesMenu = ({
 }: QuickRepliesMenuProps) => {
   return (
     <div
-      className={`w-full mb-4 rounded-10 overflow-hidden absolute z-10 bottom-${chatInputHeight} border-b border-secondary-gray`}
+      className={`rounded-t-10 overflow-hidden absolute z-10 border-secondary-gray -translate-y-[100%]`}
     >
       {quickReplies.map((reply, index) => (
         <div
           key={index}
-          className={`h-40 py-12 px-8 flex items-center border-t border-secondary-gray ${
+          className={`h-40 py-12 px-12 flex items-center border-t border-secondary-gray ${
             index === selectedIndex
               ? 'bg-secondary-gray text-primary-white'
               : 'bg-secondary-darkgray'

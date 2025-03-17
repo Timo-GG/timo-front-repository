@@ -3,6 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { socialLogin } from '../apis/auth';
 import useAuthStore from '../storage/useAuthStore';
 import { myInfo } from '../apis/member';
+import axios from 'axios';
 
 function AuthCallback() {
   const { provider } = useParams();
@@ -29,6 +30,21 @@ function AuthCallback() {
             router('/', { replace: true });
           }
           break;
+        case 'kakao':
+          if (code) {
+            const data = await socialLogin(provider, code);
+
+            console.log(data);
+
+            login(data!.accessToken, data!.refreshToken);
+
+            const userData = await myInfo();
+
+            setUserData(userData);
+
+            router('/', { replace: true });
+          }
+          break;
         default:
           break;
       }
@@ -37,12 +53,7 @@ function AuthCallback() {
     handleLogin();
   }, [provider, code, state]);
 
-  return (
-    <div>
-      <h1>인증 콜백 처리 중...</h1>
-      <p>잠시만 기다려주세요.</p>
-    </div>
-  );
+  return null;
 }
 
 export default AuthCallback;

@@ -46,10 +46,8 @@ export default function MatchOptionStatus({
       <Section label="큐 타입" changeStyle={'flex flex-col gap-0'}>
         <ButtonBox
           items={[
-            { label: '솔로랭크' },
-            { label: '자유랭크' },
-            { label: '일반' },
-            { label: '상관없음' },
+            { label: '랭크', value: 'RANK' },
+            { label: '일반', value: 'NORMAL' },
           ]}
           type="queueType"
           onClick={handleClick}
@@ -66,7 +64,10 @@ export default function MatchOptionStatus({
         />
         <ButtonBox
           label="플레이스타일"
-          items={[{ label: '즐겜' }, { label: '빡겜' }, { label: '상관없음' }]}
+          items={[
+            { label: '즐겜', value: 'FUN' },
+            { label: '빡겜', value: 'HARDCORE' },
+          ]}
           type="playStyle"
           onClick={handleClick}
           state={state}
@@ -74,9 +75,9 @@ export default function MatchOptionStatus({
         <ButtonBox
           label="내 상태"
           items={[
-            { label: '첫판' },
-            { label: '계속 플레이' },
-            { label: '마지막판' },
+            { label: '첫판', value: 'FIRST' },
+            { label: '계속 플레이', value: 'CONTINUE' },
+            { label: '마지막판', value: 'LAST' },
           ]}
           type="gameStatus"
           onClick={handleClick}
@@ -101,9 +102,8 @@ export default function MatchOptionStatus({
         <ButtonBox
           label="듀오 스타일"
           items={[
-            { label: '친목/잡담' },
-            { label: '오더/보이스' },
-            { label: '즐겜/빡겜' },
+            { label: '즐겜', value: 'FUN' },
+            { label: '빡겜', value: 'HARDCORE' },
           ]}
           type="duoStyle"
           onClick={handleClick}
@@ -128,6 +128,7 @@ export default function MatchOptionStatus({
 
 interface BoxItemProps {
   label: string;
+  value: string;
   type: string;
   state: any;
   onClick: (type: string, value: string) => void;
@@ -141,7 +142,7 @@ interface IconBoxProps {
 }
 interface ButtonBoxProps {
   label?: string;
-  items: { label: string }[];
+  items: { label: string; value: string }[];
   type: string;
   state: any;
   onClick: (type: string, value: string) => void;
@@ -160,12 +161,18 @@ const Section = ({ label, changeStyle, children }: SectionProps) => {
     </div>
   );
 };
-const ButtonBoxItem = ({ label, type, onClick, state }: BoxItemProps) => {
+const ButtonBoxItem = ({
+  label,
+  value,
+  type,
+  onClick,
+  state,
+}: BoxItemProps) => {
   return (
     <div
-      className={`w-full h-full flex justify-center items-center px-10 ${state[type] === label ? 'bg-secondary-green' : 'bg-primary-white'} hover:bg-primary-lightgray`}
+      className={`w-full h-full flex justify-center items-center px-10 ${state[type] === value ? 'bg-secondary-green' : 'bg-primary-white'} hover:bg-primary-lightgray`}
       // state[type] === label일때 색상 변경
-      onClick={() => onClick(type, label)}
+      onClick={() => onClick(type, value)}
     >
       <div className="text-black text-body3-13-regular">{label}</div>
     </div>
@@ -181,9 +188,9 @@ const IconBox = ({ label, iconType, type, onClick, state }: IconBoxProps) => {
     <BottomPositionIcon />,
     <SupportPositionIcon />,
   ];
-  let positionLabel = ['상관없음', '탑', '정글', '미드', '원딜', '서폿'];
-  let micLabel = ['마이크 ON', '마이크 OFF', '헤드셋'];
-  let micIcon = [<MikeIcon />, <MikeMuteIcon />, <HeadsetIcon />];
+  let position = ['ANY', 'TOP', 'JUNGLE', 'MID', 'RANGED_DEALER', 'SUPPORT'];
+  let mic = ['ENABLED', 'DISABLED'];
+  let micIcon = [<MikeIcon />, <MikeMuteIcon />];
   return (
     <div className="flex-col flex gap-8">
       <div className="text-body3-13-bold text-primary-white ">{label}</div>
@@ -194,9 +201,9 @@ const IconBox = ({ label, iconType, type, onClick, state }: IconBoxProps) => {
             <div
               key={index}
               className={`px-2 py-2 flex justify-center items-center ${onHover} ${
-                state[type] === positionLabel[index] ? 'bg-secondary-green' : ''
+                state[type] === position[index] ? 'bg-secondary-green' : ''
               }`}
-              onClick={() => onClick(type, positionLabel[index])}
+              onClick={() => onClick(type, position[index])}
             >
               {icon}
             </div>
@@ -210,9 +217,9 @@ const IconBox = ({ label, iconType, type, onClick, state }: IconBoxProps) => {
             <div
               key={index}
               className={`px-2 py-2 flex justify-center items-center ${onHover} ${
-                state[type] === micLabel[index] ? 'bg-secondary-green' : ''
+                state[type] === mic[index] ? 'bg-secondary-green' : ''
               }`}
-              onClick={() => onClick(type, micLabel[index])}
+              onClick={() => onClick(type, mic[index])}
             >
               {icon}
             </div>
@@ -231,6 +238,7 @@ const ButtonBox = ({ label, items, type, state, onClick }: ButtonBoxProps) => {
           <ButtonBoxItem
             key={index}
             label={item.label}
+            value={item.value}
             type={type}
             onClick={onClick}
             state={state}

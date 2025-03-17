@@ -41,3 +41,10 @@ export async function getMatchingQueueApi(gameMode: string) {
   const response = await axiosInstance.get('/match/waiting/' + gameMode);
   return response.data;
 }
+
+export async function getMatchingStatus() {
+  const response = await axiosInstance.get('match/status', {
+    withAuth: true,
+  });
+  return response.data;
+}

@@ -1,8 +1,20 @@
+import { use, useEffect, useState } from 'react';
 import { SearchIcon } from '../../../assets/svgs/assets';
+import UserReview from '../../ratings/UserReviewModal';
+import useRatings from '../../../hooks/useRatings';
 
-export default function DuoHistory({
-  duoList = [{ name: ' 이름', tag: '태그', profile: '프로필' }],
-}: any) {
+export default function DuoHistory() {
+  let selectedUserInfo;
+  const onClickRating = (name: string, tag: string, profile: string) => {
+    setModalOpen(true);
+    selectedUserInfo = { nickname: name, tag, profile };
+  };
+  let [modalOpen, setModalOpen] = useState(false);
+  let { getDuosList } = useRatings();
+  const { data: duoList, isLoading, error } = getDuosList();
+  useEffect(() => {
+    duoList.concat({ name: ' 이름', tag: '태그', profile: '프로필' });
+  }, []);
   return (
     <>
       {/* 듀오 검색 */}
@@ -18,7 +30,7 @@ export default function DuoHistory({
       </div>
       {/* 듀오 히스토리 리스트 */}
       <div className="w-full flex gap-16 items-center justify-between">
-        {duoList.map((duo: any) => (
+        {duoList?.map((duo: any) => (
           <>
             <div className="flex gap-16 items-center justify-between">
               {/* 프로필 */}
@@ -35,13 +47,23 @@ export default function DuoHistory({
               </div>
             </div>
             {/* 평가하기 */}
-            <button className="h-42 py-8 rounded-10">
+            <button className="h-42 py-8 rounded-10" onClick={onClickRating}>
               <div className="text-secondary-green text-body1-16-bold">
                 평가하기
               </div>
             </button>
           </>
         ))}
+      </div>
+      {/* 유저리뷰 모달창 */}
+      <div
+        className={`fixed top-0 left-0 w-full h-full bg-black bg-opacity-50 flex justify-center items-center ${
+          modalOpen ? '' : 'hidden'
+        }`}
+        onClick={() => setModalOpen(false)} // 배경 클릭 시 모달 닫힘
+      >
+        {/* 내부 클릭 시 닫히지 않음 */}
+        <UserReview userInfo={selectedUserInfo} />
       </div>
     </>
   );

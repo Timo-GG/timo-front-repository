@@ -7,7 +7,7 @@ export default function DropdownMenu({ navItems }: DropdownMenuProps) {
   let [isOpen, setIsOpen] = useState(false);
   let [activeMenu, setActiveMenu] = useState(navItems[0]);
   return (
-    <div className="relative">
+    <div>
       <button
         className="h-32 py-10 px-20 bg-primary-gray flex justify-between items-center gap-10 rounded-10"
         onClick={() => setIsOpen(!isOpen)}

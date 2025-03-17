@@ -109,6 +109,7 @@ export default function DuoFindStatus({
     const interval = setInterval(() => {
       if (leftTime < 0) {
         clearInterval(interval);
+        onClickMatchReject();
         return;
       }
       setLeftTime(leftTime => leftTime - 1);

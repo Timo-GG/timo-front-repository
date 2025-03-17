@@ -8,17 +8,17 @@ export default function BoardListSidebar() {
       <div className="flex flex-col gap-4  w-full">
         <Link to="/board/info" className="flex justify-between">
           <a className="text-primary-white text-body2-15-medium">정보 게시판</a>
-          <DropdownIcon className="-rotate-90" />
+          <DropdownIcon className="-rotate-90 -z-10" />
         </Link>
 
         <Link to="/board/free" className="flex justify-between">
           <a className="text-primary-white text-body2-15-medium">자유 게시판</a>
-          <DropdownIcon className="-rotate-90" />
+          <DropdownIcon className="-rotate-90 -z-10" />
         </Link>
 
         <Link to="/board/create" className="flex justify-between">
           <a className="text-primary-white text-body2-15-medium">창작 게시판</a>
-          <DropdownIcon className="-rotate-90" />
+          <DropdownIcon className="-rotate-90 -z-10" />
         </Link>
       </div>
     </div>
