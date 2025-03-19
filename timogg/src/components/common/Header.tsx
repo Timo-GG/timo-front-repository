@@ -3,6 +3,7 @@ import defaultProfile from '../../assets/images/default-profile.png';
 import { TimoLogo } from '../../assets/svgs/assets.ts';
 import useAuthStore from '../../storage/useAuthStore.tsx';
 import { useEffect } from 'react';
+import { logout } from '../../apis/auth.ts';
 
 function Header() {
   const { isLoggedIn, accessToken, refreshToken, userData } = useAuthStore();
@@ -24,18 +25,27 @@ function Header() {
           <Menu />
         </div>
         <div className="flex items-center gap-8">
-          <img
-            src={defaultProfile}
-            alt="user profile"
-            className="rounded-full"
-          />
-          {!isLoggedIn && (
+          {!isLoggedIn ? (
             <Link
               to="/login"
               className="cursor-pointer hover:text-white transition-colors truncate"
             >
               로그인
+              {/* <img
+                src={defaultProfile}
+                alt="user profile"
+                className="rounded-full"
+              /> */}
             </Link>
+          ) : (
+            <button
+              onClick={() => {
+                logout();
+              }}
+              className="cursor-pointer hover:text-white transition-colors truncate"
+            >
+              로그아웃
+            </button>
           )}
         </div>
       </header>

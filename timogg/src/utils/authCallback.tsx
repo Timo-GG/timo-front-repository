@@ -1,9 +1,8 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { socialLogin } from '../apis/auth';
 import useAuthStore from '../storage/useAuthStore';
 import { myInfo } from '../apis/member';
-import axios from 'axios';
 
 function AuthCallback() {
   const { provider } = useParams();

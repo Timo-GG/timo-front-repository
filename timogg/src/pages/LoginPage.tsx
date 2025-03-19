@@ -6,11 +6,11 @@ import Timo from '../assets/images/timo.png';
 
 function LoginPage() {
   const { isLoggedIn } = useAuthStore();
-  const router = useNavigate();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isLoggedIn) {
-      router('/', { replace: true });
+      navigate('/', { replace: true });
     }
   }, [isLoggedIn]);
 
