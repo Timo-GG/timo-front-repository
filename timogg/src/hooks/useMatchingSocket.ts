@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import io from 'socket.io-client';
 import useAuthStore, { UserData } from '../storage/useAuthStore';
 import { getMatchingStatus } from '../apis/matching';
 export default function useMatchingSocket() {
-  const socketRef = useRef<ReturnType<typeof io> | null>(null);
+  const [socket, setSocket] = useState<ReturnType<typeof io> | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [roomId, setRoomId] = useState(0);
   const [matchInfo, setMatchInfo] = useState({
@@ -19,8 +19,8 @@ export default function useMatchingSocket() {
       return;
     }
 
-    if (!socketRef.current) {
-      const newSocket = io('ws://3.34.183.7:8085?token=' + accessToken, {
+    if (!socket) {
+      const newSocket = io('wss://timo-api.duckdns.org?token=' + accessToken, {
         transports: ['websocket'],
         reconnectionAttempts: 5,
         reconnectionDelay: 2000,
@@ -40,7 +40,7 @@ export default function useMatchingSocket() {
         console.log(`소켓 이벤트: ${event}`, args);
       });
 
-      socketRef.current = newSocket;
+      setSocket(newSocket);
     }
 
     async function getMatchingStatusData() {
@@ -51,9 +51,9 @@ export default function useMatchingSocket() {
     getMatchingStatusData();
 
     return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-        socketRef.current = null;
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
         setIsConnected(false);
       }
     };
@@ -66,6 +66,6 @@ export default function useMatchingSocket() {
     setDuoInfo,
     setMatchInfo,
     setRoomId,
-    socketRef,
+    socket,
   };
 }
