@@ -12,9 +12,6 @@ export default function DuoHistory() {
   let [modalOpen, setModalOpen] = useState(false);
   let { getDuosList } = useRatings();
   const { data: duoList, isLoading, error } = getDuosList();
-  useEffect(() => {
-    duoList.concat({ name: ' 이름', tag: '태그', profile: '프로필' });
-  }, []);
   return (
     <>
       {/* 듀오 검색 */}

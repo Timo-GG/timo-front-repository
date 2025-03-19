@@ -49,6 +49,12 @@ export const socialLogin = async (
   }
 };
 
+export async function logout() {
+  useAuthStore.getState().logout();
+  axiosInstance.defaults.headers.common['Authorization'] = '';
+  console.log('로그아웃 성공');
+}
+
 export async function testLogin() {
   const response = await axiosInstance.get('/auth/test');
   axiosInstance.defaults.headers.common['Authorization'] =

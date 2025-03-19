@@ -3,6 +3,7 @@ import defaultProfile from '../../assets/images/default-profile.png';
 import { TimoLogo } from '../../assets/svgs/assets.ts';
 import useAuthStore from '../../storage/useAuthStore.tsx';
 import { useEffect } from 'react';
+import { logout } from '../../apis/auth.ts';
 
 function Header() {
   const { isLoggedIn, accessToken, refreshToken, userData } = useAuthStore();
@@ -18,28 +19,37 @@ function Header() {
 
   return (
     <>
-      <header className="w-screen h-[48px] top-0 left-0 bg-[#3C3A3A] text-[#DDDDDD] flex items-center pl-[70px] pr-[70px] justify-between fixed z-10">
-        <div className="flex items-center max-w-[586px] w-full justify-between">
+      <header className="w-screen top-0 left-0 bg-[#3C3A3A] text-primary-lightgray flex items-center px-70 py-10 justify-between z-10">
+        <div className="flex items-center max-w-586 w-full justify-between">
           <TimoLogo />
           <Menu />
         </div>
-        <div className="flex items-center gap-[8px]">
-          <img
-            src={defaultProfile}
-            alt="user profile"
-            className="rounded-full"
-          />
-          {!isLoggedIn && (
+        <div className="flex items-center gap-8">
+          {!isLoggedIn ? (
             <Link
               to="/login"
               className="cursor-pointer hover:text-white transition-colors truncate"
             >
               로그인
+              {/* <img
+                src={defaultProfile}
+                alt="user profile"
+                className="rounded-full"
+              /> */}
             </Link>
+          ) : (
+            <button
+              onClick={() => {
+                logout();
+              }}
+              className="cursor-pointer hover:text-white transition-colors truncate"
+            >
+              로그아웃
+            </button>
           )}
         </div>
       </header>
-      <div className="h-[48px]" />
+      <div className="h-48" />
     </>
   );
 }
@@ -53,7 +63,6 @@ function MenuItem({ to, label }: MenuItemProps) {
   return (
     <Link
       to={to}
-      replace
       className="cursor-pointer hover:text-white transition-colors truncate"
     >
       {label}
@@ -66,12 +75,12 @@ function Menu() {
     { to: '/', label: '홈' },
     { to: '/champion-analysis', label: '챔피언 분석' },
     { to: '/champion-tier', label: '챔피언 티어' },
-    { to: '/party-finding', label: '파티찾기' },
-    { to: '/community', label: '커뮤니티' },
+    { to: '/match', label: '파티찾기' },
+    { to: '/board', label: '커뮤니티' },
   ];
 
   return (
-    <div className="flex items-center gap-[23px]">
+    <div className="flex items-center gap-23">
       {menuItems.map(item => (
         <MenuItem key={item.to} to={item.to} label={item.label} />
       ))}
