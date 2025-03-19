@@ -1,6 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import Header from '../components/common/Header.tsx';
-import LoginForm from '../components/register/AdditionalInfoForm.tsx';
 import SocialLogin from '../components/login/SocialLogin.tsx';
 import useAuthStore from '../storage/useAuthStore.tsx';
 import { useEffect } from 'react';
@@ -18,7 +16,6 @@ function LoginPage() {
 
   return (
     <>
-      <Header />
       <div className="w-full h-screen flex justify-center items-center flex-col">
         <div className="text-center mb-[54px]">
           <h1 className="text-[36px] mb-[12px] font-medium text-[#DDDDDD]">

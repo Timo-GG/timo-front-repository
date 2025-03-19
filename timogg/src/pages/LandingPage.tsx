@@ -15,7 +15,6 @@ function LandingPage() {
 
   return (
     <>
-      <Header />
       <div className="fixed top-0 left-0 w-full h-full bg-primary-blue flex flex-col items-center justify-center">
         <div>
           <TimoLogoBig className="mb-[8px]" />

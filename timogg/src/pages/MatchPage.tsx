@@ -90,8 +90,6 @@ const MatchPage = () => {
   }, []);
   return (
     <>
-      <Header />
-
       <div className="pl-40 relative flex flex-col gap-20 justify-center items-center">
         <div
           id="sidebar"
