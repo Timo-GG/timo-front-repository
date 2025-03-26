@@ -44,7 +44,7 @@ export default function MatchingPlayerTableItem({
   let tierClass = `text-body2-15-regular ${tierColorClass}`;
 
   return (
-    <div className="w-820 flex items-center justify-between px-24 py-16 border-b storke-1 border-[#5C5C5C]">
+    <div className="w-full flex items-center justify-between px-24 py-16 border-b storke-1 border-[#5C5C5C]">
       <div className="flex flex-row gap-24 items-center">
         {/* 소환사 닉네임 */}
         <div className="flex items-center gap-8">

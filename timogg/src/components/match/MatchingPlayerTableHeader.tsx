@@ -2,7 +2,7 @@ export default function MatchingPlayerTableHeader() {
   return (
     <div
       id="tb-title"
-      className="w-820 flex items-center justify-between px-24 py-16 border-b storke-1 border-[#5C5C5C]"
+      className="w-full flex items-center justify-between px-24 py-16 border-b storke-1 border-[#5C5C5C]"
     >
       <div className="flex flex-row gap-24 items-center">
         <div className="text-body2-15-regular text-primary-white">

@@ -19,7 +19,7 @@ function Header() {
 
   return (
     <>
-      <header className="w-screen top-0 left-0 bg-[#3C3A3A] text-primary-lightgray flex items-center px-70 py-10 justify-between z-10">
+      <header className="w-screen top-0 left-0 bg-[#3C3A3A] text-primary-lightgray flex items-center px-70 py-10 justify-between z-10 mb-40">
         <div className="flex items-center max-w-586 w-full justify-between">
           <TimoLogo />
           <Menu />
@@ -29,6 +29,7 @@ function Header() {
             <Link
               to="/login"
               className="cursor-pointer hover:text-white transition-colors truncate"
+              draggable="false"
             >
               로그인
               {/* <img
@@ -49,7 +50,6 @@ function Header() {
           )}
         </div>
       </header>
-      <div className="h-48" />
     </>
   );
 }
@@ -64,6 +64,7 @@ function MenuItem({ to, label }: MenuItemProps) {
     <Link
       to={to}
       className="cursor-pointer hover:text-white transition-colors truncate"
+      draggable="false"
     >
       {label}
     </Link>

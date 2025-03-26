@@ -24,16 +24,16 @@ let matchingPlayers = Array.from({ length: 20 }, (_, i) => ({
 }));
 const MatchPage = () => {
   return (
-    <>
+    <div id="match-page" className="w-full">
       <MatchingPlayerHeader />
-      <div className="w-874 px-10 bg-secondary-realdarkgray flex flex-col items-center">
+      <div className="w-full bg-secondary-realdarkgray flex flex-col items-center">
         {/* 매칭중인 플레이어 테이블 */}
         <MatchingPlayerTableHeader />
         {matchingPlayers.map((player, i) => (
           <MatchingPlayerTableItem key={i} {...player} />
         ))}
       </div>
-    </>
+    </div>
   );
 };
 

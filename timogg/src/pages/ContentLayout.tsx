@@ -4,7 +4,7 @@ import Chat from '../components/chat/Chat';
 import useMatchingSocket from '../hooks/useMatchingSocket';
 export default function ContentLayout() {
   const {
-    socketRef,
+    socket,
     roomId,
     setRoomId,
     matchInfo,
@@ -14,9 +14,9 @@ export default function ContentLayout() {
   } = useMatchingSocket();
   return (
     <>
-      <div className={`flex flex-row gap-16`}>
+      <div className={`px-40 flex flex-row gap-16`}>
         <Sidebar
-          socket={socketRef.current}
+          socket={socket}
           roomId={roomId}
           setRoomId={setRoomId}
           matchInfo={matchInfo}
@@ -26,13 +26,9 @@ export default function ContentLayout() {
         />
         {/* 매칭중인 플레이어 헤더 */}
         {/* todo: 듀오가 시작됐을때 화면에 표시 */}
-        <div className="pl-40 relative flex flex-col gap-20 justify-center items-center">
+        <div className="px-40 relative w-full flex flex-col gap-20 justify-baseline items-center">
           {roomId !== 0 && (
-            <Chat
-              roomId={roomId}
-              socket={socketRef.current}
-              duoInfo={duoInfo}
-            />
+            <Chat roomId={roomId} socket={socket} duoInfo={duoInfo} />
           )}
           <Outlet />
         </div>

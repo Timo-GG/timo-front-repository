@@ -7,7 +7,10 @@ export const socialLoginCallback = async (provider: string) => {
       window.location.href = `http://nid.naver.com/oauth2.0/authorize?response_type=code&client_id=${process.env.REACT_APP_NAVER_CLIENT_ID}&redirect_uri=${process.env.REACT_APP_NAVER_REDIRECT_URI}&state=${process.env.REACT_APP_NAVER_STATE}`;
       break;
     case 'kakao':
-      window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.REACT_APP_KAKAO_REST_API_KEY}&redirect_uri=${process.env.REACT_APP_KAKAO_RECIRECT_URI}&response_type=code`;
+      window.location.href = `https://kauth.kakao.com/oauth/authorize?client_id=${process.env.REACT_APP_KAKAO_REST_API_KEY}&redirect_uri=${process.env.REACT_APP_KAKAO_REDIRECT_URI}&response_type=code`;
+      break;
+    case 'discord':
+      window.location.href = `https://discord.com/oauth2/authorize?client_id=${process.env.REACT_APP_DISCORD_CLIENT_ID}&response_type=code&redirect_uri=${process.env.REACT_APP_DISCORD_REDIRECT_URI}&scope=email+identify`;
       break;
     default:
       break;
@@ -43,7 +46,17 @@ export const socialLogin = async (
         window.location.href = '/';
         throw error;
       }
-      break;
+    case 'discord':
+      try {
+        const response = await axiosInstance.post('/auth/discord', {
+          authorizationCode,
+        });
+        return response.data;
+      } catch (error) {
+        alert('로그인에 실패했습니다.');
+        window.location.href = '/';
+        throw error;
+      }
     default:
       return { accessToken: '', refreshToken: '' };
   }
@@ -72,7 +85,7 @@ export async function getMyInfo() {
   return response.data;
 }
 
-// 리프레시 토큰 만료 시 토큰 재발급
+// 액세스 토큰 만료 시 토큰 재발급 시도
 export async function refreshToken() {
   const response = await axiosInstance.post('/auth/refresh');
   axiosInstance.defaults.headers.common['Authorization'] =
@@ -81,15 +94,23 @@ export async function refreshToken() {
     accessToken: response.data.accessToken,
     refreshToken: response.data.refreshToken,
   });
-  console.log('토큰 재발급 성공', response.data);
+  //리프레쉬 토큰도 만료시 로그아웃, 로그인 페이지로 이동
+  if (response.status === 401) {
+    useAuthStore.getState().logout();
+    window.location.href = '/';
+  }
+  return response;
 }
 
-//axios interceptors를 사용하여 토큰 만료 시 토큰 재발급
+//axios interceptors를 사용하여 액세스 토큰 만료 시 토큰 재발급
 axiosInstance.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
+      //리프레시 토큰으로 요청 날리기
+      axiosInstance.defaults.headers.common['Refresh-Token'] =
+        `Bearer ${useAuthStore.getState().refreshToken}`;
       originalRequest._retry = true;
       await refreshToken();
       return axiosInstance(originalRequest);
