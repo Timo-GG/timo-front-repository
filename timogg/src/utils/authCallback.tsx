@@ -44,6 +44,19 @@ function AuthCallback() {
             router('/', { replace: true });
           }
           break;
+        case 'discord':
+          if (code) {
+            const data = await socialLogin(provider, code);
+
+            login(data!.accessToken, data!.refreshToken);
+
+            const userData = await myInfo();
+
+            setUserData(userData);
+
+            router('/', { replace: true });
+          }
+          break;
         default:
           break;
       }
