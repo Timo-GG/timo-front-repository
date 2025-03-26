@@ -68,7 +68,7 @@ interface Post {
 
 export default function PostList({ posts }: { posts: Post[] }) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className="w-full flex flex-col gap-8">
       {posts.map(post => (
         <PostItem key={post.id} post={post} />
       ))}
@@ -79,7 +79,7 @@ export default function PostList({ posts }: { posts: Post[] }) {
 // 필요 없는 정보 : 글 내용, memberID,
 function PostItem({ post }: { post: Post }) {
   return (
-    <div className="flex flex-row gap-4 justify-between">
+    <div className="w-full flex flex-row gap-4 justify-between">
       <div className="flex flex-col gap-4 ">
         <div className="flex flex-row gap-4 items-end text-body1-16-regular">
           {post.isHaveImg && <PictureIcon />}

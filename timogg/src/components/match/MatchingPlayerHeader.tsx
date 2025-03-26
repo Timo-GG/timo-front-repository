@@ -8,7 +8,7 @@ export default function MatchingPlayerHeader() {
   const [activeMenu, setActiveMenu] = useState(navItems[0]);
 
   return (
-    <div className="w-874 h-36 flex flex-row items-center justify-around gap-12 mt-16">
+    <div className="w-full h-36 flex flex-row items-center justify-baseline gap-12 mt-16">
       <div className="flex flex-row items-center gap-24">
         <div className="text-title1-24-medium whitespace-nowrap">
           매칭 중인 플레이어
@@ -17,8 +17,8 @@ export default function MatchingPlayerHeader() {
         <DropdownMenu navItems={navItems} />
       </div>
 
-      <div className="flex flex-row items-center gap-24">
-        {/* 소환사 검색창 */}
+      {/* <div className="flex flex-row items-center gap-24">
+        {/* 소환사 검색창 
         <div className="w-430 h-32 flex flex-row items-center gap-4 bg-primary-gray rounded-10 overflow-hidden px-20">
           <input
             type="text"
@@ -29,11 +29,11 @@ export default function MatchingPlayerHeader() {
             <SearchIcon />
           </button>
         </div>
-        {/* 방 만들기 버튼 */}
+        {/* 방 만들기 버튼 
         <button className="px-20 py-10 h-32 bg-secondary-green flex justify-center items-center rounded-10">
           <div className="text-body3-13-bold text-primary-white">방 만들기</div>
         </button>
-      </div>
+      </div> */}
     </div>
   );
 }
