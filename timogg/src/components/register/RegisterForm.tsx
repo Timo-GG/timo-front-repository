@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { TermsSection } from './TermsSection';
 import Button from '../common/Button.tsx';
+import tos from '../../assets/markdown/tos.md';
+import privacy from '../../assets/markdown/privacy.md';
 
 interface RegisterFormProps {
   setShowAdditionalInfo: (value: boolean) => void;
@@ -39,6 +41,7 @@ export const RegisterForm = ({ setShowAdditionalInfo }: RegisterFormProps) => {
             checked={agreeTerms}
             onChange={() => setAgreeTerms(!agreeTerms)}
             showError={showError && !agreeTerms}
+            mdUrl={tos}
           />
           <TermsSection
             title="개인정보 수집 및 이용 동의"
@@ -46,6 +49,7 @@ export const RegisterForm = ({ setShowAdditionalInfo }: RegisterFormProps) => {
             checked={agreePrivacy}
             onChange={() => setAgreePrivacy(!agreePrivacy)}
             showError={showError && !agreePrivacy}
+            mdUrl={privacy}
           />
         </div>
         <Button label="다음" width={'100%'} onSubmit={handleNextClick} />
