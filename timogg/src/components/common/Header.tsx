@@ -19,9 +19,11 @@ function Header() {
 
   return (
     <>
-      <header className="w-screen top-0 left-0 bg-[#3C3A3A] text-primary-lightgray flex items-center px-70 py-10 justify-between z-10 mb-40">
-        <div className="flex items-center max-w-586 w-full justify-between">
-          <TimoLogo />
+      <header className="w-screen top-0 left-0 bg-[#3C3A3A] text-primary-lightgray flex items-center px-70 py-10 justify-between z-10 mb-40 gap-20">
+        <div className="flex items-center gap-114">
+          <Link to={'/'}>
+            <TimoLogo />
+          </Link>
           <Menu />
         </div>
         <div className="flex items-center gap-8">
@@ -74,8 +76,6 @@ function MenuItem({ to, label }: MenuItemProps) {
 function Menu() {
   const menuItems = [
     { to: '/', label: '홈' },
-    { to: '/champion-analysis', label: '챔피언 분석' },
-    { to: '/champion-tier', label: '챔피언 티어' },
     { to: '/match', label: '파티찾기' },
     { to: '/board', label: '커뮤니티' },
   ];
