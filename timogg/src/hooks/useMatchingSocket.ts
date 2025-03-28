@@ -20,7 +20,7 @@ export default function useMatchingSocket() {
     }
 
     if (!socket) {
-      const newSocket = io('wss://timo-api.duckdns.org?token=' + accessToken, {
+      const newSocket = io('wss://api.timo.kr?token=' + accessToken, {
         transports: ['websocket'],
         reconnectionAttempts: 5,
         reconnectionDelay: 2000,
