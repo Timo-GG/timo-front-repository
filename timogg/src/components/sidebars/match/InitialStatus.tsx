@@ -2,7 +2,10 @@ import { useState } from 'react';
 import DuoHistory from './DuoHistory';
 import { DropdownIcon } from '../../../assets/svgs/assets';
 
-export default function InitialStatus({ onClickDuoFindStartBtn }: any) {
+export default function InitialStatus({
+  onClickDuoFindStartBtn,
+  children,
+}: any) {
   const [isDuohistoryOpen, setIsDuohistoryOpen] = useState(false);
 
   return (
@@ -19,14 +22,14 @@ export default function InitialStatus({ onClickDuoFindStartBtn }: any) {
         className="w-270 h-42 py-8 flex justify-between items-center"
         onClick={() => setIsDuohistoryOpen(!isDuohistoryOpen)}
       >
-        <div>함께한 듀오 목록</div>
+        <div className="text-body1-16-bold">함께한 듀오 목록</div>
         {isDuohistoryOpen ? (
           <DropdownIcon className="transform rotate-180" />
         ) : (
           <DropdownIcon />
         )}
       </button>
-      {isDuohistoryOpen && <DuoHistory />}
+      {isDuohistoryOpen && children}
     </>
   );
 }
