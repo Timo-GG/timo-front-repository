@@ -45,7 +45,7 @@ export default function Sidebar({
         setDuoInfo={setDuoInfo}
       />
       {isLoggedIn ? <LoginedSidebar /> : <NotLoginedSidebar />}
-      <BoardListSidebar />
+      {RegExp(/\/board/).test(window.location.pathname) && <BoardListSidebar />}
     </div>
   );
 }
