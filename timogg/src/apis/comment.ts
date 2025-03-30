@@ -7,7 +7,9 @@ interface CreateCommentApiBody {
 }
 // 댓글 작성
 export async function createCommentApi(body: CreateCommentApiBody) {
-  const response = await axiosInstance.post('/comments', body);
+  const response = await axiosInstance.post('/comments', body, {
+    withAuth: true,
+  });
   return response.data;
 }
 
@@ -24,24 +26,30 @@ export async function updateCommentApi({
   commentId: string;
   data: UpdateCommentApiBody;
 }) {
-  const response = await axiosInstance.put('/comments/' + commentId, body);
+  const response = await axiosInstance.put('/comments/' + commentId, body, {
+    withAuth: true,
+  });
   return response.data;
 }
 
 // 댓글 삭제
 export async function deleteCommentApi(commentId: string) {
-  const response = await axiosInstance.delete('/comments/' + commentId);
+  const response = await axiosInstance.delete('/comments/' + commentId, {});
   return response.data;
 }
 
 // 단일 댓글 조회
 export async function getCommentApi(commentId: string) {
-  const response = await axiosInstance.get('/comments/public/' + commentId);
+  const response = await axiosInstance.get('/comments/public/' + commentId, {
+    withAuth: true,
+  });
   return response.data;
 }
 
 // 댓글 전체 조회
 export async function getCommentsApi() {
-  const response = await axiosInstance.get('/comments/public');
+  const response = await axiosInstance.get('/comments/public', {
+    withAuth: true,
+  });
   return response.data;
 }
