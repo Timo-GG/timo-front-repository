@@ -108,14 +108,23 @@ axiosInstance.interceptors.response.use(
       axiosInstance.defaults.headers.common['Refresh-Token'] =
         `Bearer ${useAuthStore.getState().refreshToken}`;
       originalRequest._retry = true;
-      console.log('리프레시 토큰으로 재요청', originalRequest);
-      // const response = await axiosInstance.post('/auth/refresh');
-      // axiosInstance.defaults.headers.common['Authorization'] =
-      //   `Bearer ${response.data.accessToken}`;
-      // useAuthStore.setState({
-      //   accessToken: response.data.accessToken,
-      //   refreshToken: response.data.refreshToken,
-      // });
+      const response = await axiosInstance.post('/auth/refresh');
+      console.log('리프레시 토큰으로 재요청', response.data);
+      if (response.status !== 200) {
+        useAuthStore.getState().logout();
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
+      // 새로운 액세스 토큰과 리프레시 토큰을 저장합니다.
+      axiosInstance.defaults.headers.common['Authorization'] =
+        `Bearer ${response.data.data.accessToken}`;
+      useAuthStore.getState().setAccessToken(response.data.data.accessToken);
+      useAuthStore.getState().setRefreshToken(response.data.data.refreshToken);
+      // 재요청 시 새로운 액세스 토큰을 헤더에 추가합니다.
+      originalRequest.headers['Authorization'] =
+        `Bearer ${response.data.data.accessToken}`;
+      console.log('재요청 성공', response.data.data.accessToken);
+      console.log('현재 내 정보', useAuthStore.getState());
       return axiosInstance(originalRequest);
     }
     return Promise.reject(error);
