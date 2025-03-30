@@ -12,6 +12,18 @@ export const myInfo = async () => {
   }
 };
 
+export const getMyDetailInfo = async () => {
+  try {
+    const res = await axiosInstance.get('/members/me', {
+      withAuth: true,
+    });
+
+    return res.data.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const getDuoInfo = async (id: string) => {
   try {
     const res = await axiosInstance.get(`/members/${id}`, {
