@@ -5,6 +5,26 @@ interface CreateCommentApiBody {
   memberId: number;
   postId: number;
 }
+
+interface CommentFilterDto {
+  commentId?: number; // Optional
+  postId?: number; // Optional
+  memberId?: number; // Optional
+  sortBy?: string; // Comment 엔티티 변수 필드명, Optional, default = regDate
+  sortOrder?: boolean; // True가 오름차순, Optional, default = true
+}
+interface Pageable {
+  page: number; // 페이지 번호 (0부터 시작)
+  size: number; // 페이지당 데이터 개수
+}
+interface CommentResponseDto {
+  id: number; // 댓글 ID
+  content: string; // 댓글 내용
+  postId: number; // 게시글 ID
+  memberId: number; // 작성자 ID
+  regDate: string; // 등록일
+  modDate: string; // 수정일
+}
 // 댓글 작성
 export async function createCommentApi(body: CreateCommentApiBody) {
   const response = await axiosInstance.post('/comments', body, {
@@ -38,18 +58,21 @@ export async function deleteCommentApi(commentId: string) {
   return response.data;
 }
 
-// 단일 댓글 조회
-export async function getCommentApi(commentId: string) {
-  const response = await axiosInstance.get('/comments/public/' + commentId, {
-    withAuth: true,
-  });
-  return response.data;
-}
-
-// 댓글 전체 조회
-export async function getCommentsApi() {
+// 댓글 조회
+export async function getCommentApi({
+  CommentFilterDto,
+  pageable,
+}: {
+  CommentFilterDto?: CommentFilterDto;
+  pageable?: Pageable;
+}): Promise<{
+  success: boolean;
+  message: string;
+  errorCode: number;
+  data: CommentResponseDto[];
+}> {
   const response = await axiosInstance.get('/comments/public', {
-    withAuth: true,
+    params: { ...CommentFilterDto, ...pageable },
   });
   return response.data;
 }

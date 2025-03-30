@@ -11,6 +11,7 @@ import useAuthStore from '../storage/useAuthStore.tsx';
 import OuterLayout from './OuterLayout.tsx';
 import { useEffect } from 'react';
 import ContentLayout from './ContentLayout.tsx';
+import { PostPage } from './PostPage.tsx';
 
 function Router() {
   const { isLoggedIn } = useAuthStore();
@@ -35,6 +36,7 @@ function Router() {
           <Route path="/match" element={<MatchPage />} />
           <Route path="/board" element={<BoardPage />} />
           <Route path="/board/:type" element={<BoardPage />} />
+          <Route path="/board/:type/:postId" element={<PostPage />} />
         </Route>
         <Route path="/auth/callback/:provider" element={<AuthCallback />} />
         <Route path="/api" element={<ApiTestPage />} />

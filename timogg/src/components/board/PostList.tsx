@@ -1,4 +1,6 @@
+import { Link, useNavigate } from 'react-router-dom';
 import { EyeIcon, LikeIcon, PictureIcon } from '../../assets/svgs/assets';
+import usePosts from '../../hooks/usePosts';
 
 interface Post {
   id: number;
@@ -27,8 +29,20 @@ export default function PostList({ posts }: { posts: Post[] }) {
 //필요한 정보 : 유저 아이디, 댓글 수, 사진이 있는지 없는지 여부,
 // 필요 없는 정보 : 글 내용, memberID,
 function PostItem({ post }: { post: Post }) {
+  const navigate = useNavigate();
+  const curruntBoardType = window.location.pathname.split('/')[2];
+  const onClickPost = () => {
+    //게시글 상세 페이지로 이동
+    navigate(`/board/${curruntBoardType}/${post.id}`, {
+      state: { post },
+    });
+  };
+
   return (
-    <div className="w-full flex flex-row gap-4 justify-between">
+    <div
+      className="w-full flex flex-row gap-4 justify-between cursor-pointer"
+      onClick={onClickPost}
+    >
       <div className="flex flex-col gap-4 ">
         <div className="flex flex-row gap-4 items-end text-body1-16-regular">
           {post.isHaveImg && <PictureIcon />}

@@ -53,13 +53,18 @@ export async function updatePostApi({
   postId: string;
   data: UpdatePostApiBody;
 }) {
-  const response = await axiosInstance.put('/posts/' + postId, data);
+  const response = await axiosInstance.put('/posts/' + postId, {
+    data,
+    withAuth: true,
+  });
   return response.data;
 }
 
 // 포스트 삭제
 export async function deletePostApi(postId: string) {
-  const response = await axiosInstance.delete('/posts/' + postId);
+  const response = await axiosInstance.delete('/posts/' + postId, {
+    withAuth: true,
+  });
   return response.data;
 }
 
@@ -80,4 +85,20 @@ export async function getPostsApi({
     params: { ...searchingFilterDto, ...pageable },
   });
   return response.data;
+}
+
+// 포스트 개별 조회, 조회수 증가용
+export async function getPostApi({ postId }: { postId: number }): Promise<{
+  data: PostResponseDto;
+  success: boolean;
+  message: string;
+  errorCode: number;
+}> {
+  try {
+    const response = await axiosInstance.get('/posts/public/' + postId);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching post:', error);
+    throw error; // Rethrow the error to be handled by the calling function
+  }
 }

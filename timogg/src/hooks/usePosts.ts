@@ -2,10 +2,12 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   createPostApi,
   deletePostApi,
+  getPostApi,
   getPostsApi,
   updatePostApi,
 } from '../apis/post';
 import useAuthStore from '../storage/useAuthStore';
+import { get } from 'http';
 
 export default function usePosts() {
   // 포스트 생성
@@ -39,10 +41,10 @@ export default function usePosts() {
     },
   });
 
+  /// 포스트 개별 조회
   let getPost = (postId: number) => {
-    //todo: 포스트 상세 조회 api 호출
     return useQuery({
-      queryKey: ['post'],
+      queryKey: ['post', postId],
       queryFn: () => getPostsApi({ searchingFilterDto: { postId } }),
       staleTime: 1000 * 60 * 5, // 5분
     });
@@ -110,6 +112,15 @@ export default function usePosts() {
     });
   };
 
+  // 포스트 조회수 증가
+  let getPostDetail = (postId: number) => {
+    return useQuery({
+      queryKey: ['increaseViewCount', postId],
+      queryFn: () => getPostApi({ postId }),
+      staleTime: 1000 * 60 * 5, // 5분에 한 번만 조회수 증가
+    });
+  };
+
   return {
     createPost,
     updatePost,
@@ -118,5 +129,6 @@ export default function usePosts() {
     getPosts,
     getMyPosts,
     getSearchPosts,
+    getPostDetail,
   };
 }
