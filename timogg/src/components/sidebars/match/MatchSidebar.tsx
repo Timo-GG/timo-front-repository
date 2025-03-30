@@ -11,6 +11,7 @@ import DuoPlayingStatus from './DuoPlayingStatus';
 import io from 'socket.io-client';
 import { UserData } from '../../../storage/useAuthStore';
 import { getDuoInfo } from '../../../apis/member';
+import DuoHistory from './DuoHistory';
 
 interface MatchSidebarProps {
   socket: ReturnType<typeof io> | null;
@@ -28,6 +29,7 @@ interface MatchSidebarProps {
   >;
   duoInfo: UserData | null;
   setDuoInfo: React.Dispatch<React.SetStateAction<UserData | null>>;
+  onClickRating: (name: string, tag: string, profile: string) => void;
 }
 
 const MatchSidebar = ({
@@ -38,6 +40,7 @@ const MatchSidebar = ({
   setMatchInfo,
   duoInfo,
   setDuoInfo,
+  onClickRating,
 }: MatchSidebarProps) => {
   const [step, setStep] = useState(0);
 
@@ -149,7 +152,9 @@ const MatchSidebar = ({
       >
         {step === 0 && (
           <motion.div layout className="w-full flex flex-col items-center">
-            <InitialStatus onClickDuoFindStartBtn={onClickDuoFindStartBtn} />
+            <InitialStatus onClickDuoFindStartBtn={onClickDuoFindStartBtn}>
+              <DuoHistory onClickRating={onClickRating} />
+            </InitialStatus>
           </motion.div>
         )}
         {step === 1 && (

@@ -4,6 +4,9 @@ import useComments from '../hooks/useComments';
 import useMatching from '../hooks/useMatching';
 import usePosts from '../hooks/usePosts';
 import useRatings from '../hooks/useRatings';
+import useAuthStore from '../storage/useAuthStore';
+import { axiosInstance } from '../apis';
+import { myInfo } from '../apis/member';
 
 export default function ApiTestPage() {
   const { createPost, updatePost, deletePost, getPost, getPosts } = usePosts();
@@ -31,12 +34,25 @@ export default function ApiTestPage() {
   const [matchingId, setMatchingId] = useState('');
   const [requestBody, setRequestBody] = useState('');
   const [response, setResponse] = useState<any>(null);
+  const { login, setUserData } = useAuthStore();
 
   return (
     <div>
       <div>로그인</div>
       <div className="flex flex-col">
-        <button onClick={() => testLogin()}>로그인</button>
+        <button
+          onClick={async () => {
+            const data = await testLogin();
+
+            login(data!.accessToken, data!.refreshToken);
+
+            const userData = await myInfo();
+
+            setUserData(userData);
+          }}
+        >
+          로그인
+        </button>
         <button
           onClick={async () => {
             let data = await getMyInfo();
@@ -45,7 +61,15 @@ export default function ApiTestPage() {
         >
           내 정보
         </button>
-        <button>로그아웃</button>
+        <button
+          onClick={async () => {
+            useAuthStore.getState().logout();
+            axiosInstance.defaults.headers.common['Authorization'] = '';
+            console.log('로그아웃 성공');
+          }}
+        >
+          로그아웃
+        </button>
       </div>
 
       {/* ✅ 입력 필드 */}

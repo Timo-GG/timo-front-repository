@@ -1,6 +1,30 @@
+import { useEffect, useState } from 'react';
 import Button from '../../common/Button';
+import { useMyInfoQuery } from '../../../queries/useMyInfoQuery';
 
 export default function LoginedSidebar() {
+  const { data, isLoading } = useMyInfoQuery();
+  const [myInfo, setMyInfo] = useState({
+    nickname: '',
+    playerName: '',
+    playerTag: '',
+    postCount: 0,
+    commentCount: 0,
+    ratingAverage: 0,
+  });
+  console.log('내 정보', data);
+  useEffect(() => {
+    if (data) {
+      setMyInfo({
+        nickname: data.memberProfile.nickname,
+        playerName: data.memberProfile.playerName,
+        playerTag: data.memberProfile.playerTag,
+        postCount: data.postCount,
+        commentCount: data.commentCount,
+        ratingAverage: data.ratingAverage,
+      });
+    }
+  }, [data]);
   return (
     <div
       id="logined-sidebar"
@@ -10,7 +34,9 @@ export default function LoginedSidebar() {
       <div className="flex gap-8 items-center ">
         <div className="w-48 h-48 bg-secondary-darkgray rounded-full"></div>
         <div className="flex flex-col gap-4">
-          <div className="text-primary-white text-body1-16-regular">이름</div>
+          <div className="text-primary-white text-body1-16-regular">
+            {myInfo.nickname}
+          </div>
         </div>
       </div>
       {/* 내가쓴글, 내가 쓴 댓글, 내 평점 */}
@@ -20,7 +46,7 @@ export default function LoginedSidebar() {
             내가 쓴 글
           </div>
           <div className="text-primary-lightgray text-body3-13-regular">
-            0개
+            {myInfo.postCount}개
           </div>
         </button>
 
@@ -29,7 +55,7 @@ export default function LoginedSidebar() {
             내가 쓴 댓글
           </div>
           <div className="text-primary-lightgray text-body3-13-regular">
-            0개
+            {myInfo.commentCount}개
           </div>
         </button>
 
@@ -38,7 +64,7 @@ export default function LoginedSidebar() {
             내 평점
           </div>
           <div className="text-primary-lightgray text-body3-13-regular">
-            0개
+            {myInfo.ratingAverage}점
           </div>
         </button>
       </div>
@@ -59,10 +85,10 @@ export default function LoginedSidebar() {
           <div className="w-30 h-30 rounded-4 bg-white" />
           <div>
             <div className="text-primary-white text-body3-13-medium">
-              내여친 아칼리
+              {myInfo.playerName}
             </div>
             <div className="text-secondary-gray text-body5-10-regular">
-              #kr1
+              #{myInfo.playerTag}
             </div>
           </div>
         </div>

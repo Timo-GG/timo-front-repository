@@ -56,13 +56,16 @@ let testPosts = [
   },
 ];
 import PostCreate from '../components/board/PostCreate';
+import { useParams } from 'react-router-dom';
 
 const BoardPage = () => {
+  let params = useParams();
   let boardItems = ['정보 게시판', '자유 게시판 ', '창작 게시판'];
   let navItems = ['최신순', '높은 티어 순', '평점 높은순'];
   return (
     <>
       <h1>Board Page</h1>
+      <div>{params.type}</div>
       <PostList posts={testPosts} />
       {/* <PostCreate /> */}
     </>

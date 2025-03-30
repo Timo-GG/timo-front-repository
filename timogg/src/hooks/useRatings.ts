@@ -4,7 +4,6 @@ import {
   deleteRatingApi,
   getDuosListApi,
   getMyRatingApi,
-  getRatingApi,
 } from '../apis/rating';
 
 export default function useRatings() {
@@ -30,19 +29,18 @@ export default function useRatings() {
   });
   // 내 평가 조회
   let getRatings = () => {
-    let { data, isLoading, error } = useQuery({
+    return useQuery({
       queryKey: ['ratings'],
       queryFn: getMyRatingApi,
     });
-    return { data, isLoading, error };
   };
   // 듀오 리스트 조회
   let getDuosList = () => {
-    let { data, isLoading, error } = useQuery({
+    return useQuery({
       queryKey: ['duos'],
       queryFn: getDuosListApi,
+      staleTime: 1000 * 60 * 5, // 5분
     });
-    return { data, isLoading, error };
   };
   return { createRating, deleteRating, getRatings, getDuosList };
 }

@@ -1,6 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Router from './pages/Router.tsx';
-import Sidebar from './components/sidebars/Sidebar.tsx';
 import { BrowserRouter, HashRouter } from 'react-router-dom';
 
 let queryClient = new QueryClient();

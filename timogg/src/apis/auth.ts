@@ -1,5 +1,6 @@
 import { axiosInstance } from '.';
 import useAuthStore from '../storage/useAuthStore';
+import { myInfo } from './member';
 
 export const socialLoginCallback = async (provider: string) => {
   switch (provider) {
@@ -69,50 +70,61 @@ export async function logout() {
 }
 
 export async function testLogin() {
-  const response = await axiosInstance.get('/auth/test');
-  axiosInstance.defaults.headers.common['Authorization'] =
-    `Bearer ${response.data.accessToken}`;
-  useAuthStore.setState({
-    accessToken: response.data.accessToken,
-    refreshToken: response.data.refreshToken,
-  });
-  console.log('테스트 로그인 성공', response.data);
+  const { data } = await axiosInstance.get('/auth/test');
+  console.log('로그인 요청 성공', data);
+  return data;
 }
 
 export async function getMyInfo() {
-  const response = await axiosInstance.get('/members/me');
+  const response = await axiosInstance.get('/members/me', { withAuth: true });
   console.log('내 정보 조회 성공', response.data);
   return response.data;
 }
 
 // 액세스 토큰 만료 시 토큰 재발급 시도
-export async function refreshToken() {
-  const response = await axiosInstance.post('/auth/refresh');
-  axiosInstance.defaults.headers.common['Authorization'] =
-    `Bearer ${response.data.accessToken}`;
-  useAuthStore.setState({
-    accessToken: response.data.accessToken,
-    refreshToken: response.data.refreshToken,
-  });
-  //리프레쉬 토큰도 만료시 로그아웃, 로그인 페이지로 이동
-  if (response.status === 401) {
-    useAuthStore.getState().logout();
-    window.location.href = '/';
-  }
-  return response;
-}
+// export async function refreshToken() {
+//   const
+//   //리프레쉬 토큰도 만료시 로그아웃, 로그인 페이지로 이동
+//   if (response.status === 401) {
+//     useAuthStore.getState().logout();
+//     window.location.href = '/';
+//   }
+//   return response;
+// }
 
-//axios interceptors를 사용하여 액세스 토큰 만료 시 토큰 재발급
+// //axios interceptors를 사용하여 액세스 토큰 만료 시 토큰 재발급
 axiosInstance.interceptors.response.use(
   response => response,
   async error => {
     const originalRequest = error.config;
     if (error.response?.status === 401 && !originalRequest._retry) {
-      //리프레시 토큰으로 요청 날리기
+      //리프레시 토큰이 있다면
+      if (!useAuthStore.getState().refreshToken) {
+        useAuthStore.getState().logout();
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
+
       axiosInstance.defaults.headers.common['Refresh-Token'] =
         `Bearer ${useAuthStore.getState().refreshToken}`;
       originalRequest._retry = true;
-      await refreshToken();
+      const response = await axiosInstance.post('/auth/refresh');
+      console.log('리프레시 토큰으로 재요청', response.data);
+      if (response.status !== 200) {
+        useAuthStore.getState().logout();
+        window.location.href = '/';
+        return Promise.reject(error);
+      }
+      // 새로운 액세스 토큰과 리프레시 토큰을 저장합니다.
+      axiosInstance.defaults.headers.common['Authorization'] =
+        `Bearer ${response.data.data.accessToken}`;
+      useAuthStore.getState().setAccessToken(response.data.data.accessToken);
+      useAuthStore.getState().setRefreshToken(response.data.data.refreshToken);
+      // 재요청 시 새로운 액세스 토큰을 헤더에 추가합니다.
+      originalRequest.headers['Authorization'] =
+        `Bearer ${response.data.data.accessToken}`;
+      console.log('재요청 성공', response.data.data.accessToken);
+      console.log('현재 내 정보', useAuthStore.getState());
       return axiosInstance(originalRequest);
     }
     return Promise.reject(error);
