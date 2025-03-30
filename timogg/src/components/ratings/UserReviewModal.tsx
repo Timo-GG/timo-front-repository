@@ -2,18 +2,40 @@ import { useEffect, useState } from 'react';
 import Modal from '../common/Modal.tsx';
 import ReviewQuestion from './ReviewQuestion.tsx';
 import StarRating from './StarRating.tsx';
-import UserInfo, { UserInfoProps } from './UserInfo.tsx';
+import UserInfo from './UserInfo.tsx';
 import Button from '../common/Button.tsx';
 import useRatings from '../../hooks/useRatings.ts';
 
-function UserReview(userInfo: UserInfoProps) {
+function UserReview({
+  userInfo,
+  onClickSubmitRating,
+}: {
+  userInfo: {
+    nickname?: string;
+    tag?: string;
+    country?: string;
+    rank?: string;
+    rankPercentage?: string;
+    duoId: number;
+    matchId: number;
+  };
+  onClickSubmitRating: (isSuccess: boolean) => void;
+}) {
   const [attitude, setAttitude] = useState('');
   const [speech, setSpeech] = useState('');
   const [skill, setSkill] = useState('');
   const [rating, setRating] = useState(0);
   const { createRating } = useRatings();
   // useEffect(() => {}, [attitude, speech, skill, rating]);
-  const onClickRating = () =>
+  const onClickRating = () => {
+    if (attitude === '' || speech === '' || skill === '') {
+      alert('모든 질문에 답변해주세요!');
+      return;
+    }
+    if (rating === 0) {
+      alert('소환사의 매너 점수를 남겨주세요!');
+      return;
+    }
     createRating.mutate({
       score: rating,
       attitude,
@@ -22,6 +44,8 @@ function UserReview(userInfo: UserInfoProps) {
       duoId: userInfo.duoId,
       matchId: userInfo.matchId,
     });
+    onClickSubmitRating(createRating.isSuccess);
+  };
   return (
     <Modal>
       <div
