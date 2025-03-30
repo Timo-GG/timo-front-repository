@@ -33,7 +33,7 @@ function Router() {
         <Route path="/register" element={<RegisterPage />} />
         <Route element={<ContentLayout />}>
           <Route path="/match" element={<MatchPage />} />
-          <Route path="/board" element={<BoardPage />} />
+          <Route path="/board/:type" element={<BoardPage />} />
         </Route>
         <Route path="/auth/callback/:provider" element={<AuthCallback />} />
         <Route path="/api" element={<ApiTestPage />} />
