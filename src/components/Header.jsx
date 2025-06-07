@@ -115,7 +115,7 @@ export default function Header() {
         {label: '랭킹', path: '/ranking'},
         {label: '내전', path: '/scrim'},
         {label: '듀오 찾기', path: '/duo'},
-        // {label: '마이페이지', path: '/mypage'},
+        {label: '마이페이지', path: '/mypage'},
     ];
 
     const [isVisible, setIsVisible] = useState(true);

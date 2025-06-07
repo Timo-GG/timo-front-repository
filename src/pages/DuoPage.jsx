@@ -819,8 +819,8 @@ function FilterBar({
 }
 
 function DuoHeader() {
-    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 0.5];
-    const headers = ['소환사', '큐 타입', '주 포지션', '티어', '찾는 포지션', '한 줄 소개', '등록 일시', '만료 일시', ''];
+    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 1.1, 0.5];
+    const headers = ['소환사', '큐 타입', '주 포지션', '티어', '찾는 포지션', '한 줄 소개', '등록 일시', '만료 일시', '듀오 신청', ''];
     return (
         <Box sx={headerRowStyle}>
             {headers.map((text, i) => (
@@ -833,7 +833,7 @@ function DuoHeader() {
 }
 
 function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit}) {
-    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 0.5];
+    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 1.1, 0.5];
     const isMine = user.memberId === currentUser.memberId;
 
     const [anchorEl, setAnchorEl] = useState(null);
@@ -933,6 +933,7 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 textAlign: 'center',
                 fontSize: {xs: '0.7rem', sm: '0.75rem'}
             }}>{relativeTime}</Box>
+
             <Box sx={{
                 flex: columns[7],
                 textAlign: 'center',
@@ -941,7 +942,15 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
             }}>
                 {expiryTime}
             </Box>
-            <Box sx={{flex: columns[8], textAlign: 'right'}}>
+            <Box sx={{flex: columns[8], textAlign: 'center'}}>
+                <Button variant="contained" sx={applyBtnStyle} onClick={(e) => {
+                    e.stopPropagation();
+                    onApplyDuo();
+                }}>
+                    신청
+                </Button>
+            </Box>
+            <Box sx={{flex: columns[9], textAlign: 'right'}}>
                 {isMine && (
                     <>
                         <IconButton onClick={(e) => {
@@ -1023,4 +1032,14 @@ const itemRowStyle = {
     borderBottom: '2px solid #12121a',
     cursor: 'pointer',
     '&:hover': {backgroundColor: '#2E2E38'},
+};
+
+const applyBtnStyle = {
+    backgroundColor: '#424254',
+    color: '#fff',
+    borderRadius: 0.8,
+    fontWeight: 'bold',
+    px: 2,
+    py: 1,
+    border: '1px solid #71717D',
 };

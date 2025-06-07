@@ -558,10 +558,11 @@ export default function ScrimPage() {
                             <Box width="10%" textAlign="center">맵</Box>
                             <Box width="10%" textAlign="center">인원</Box>
                             <Box width="10%" textAlign="center">티어</Box>
-                            <Box width="10%" textAlign="center">{tab === 0 ? '대학교' : '학과'}</Box>
+                            <Box width="15%" textAlign="center">{tab === 0 ? '대학교' : '학과'}</Box>
                             <Box width="20%" textAlign="center">한 줄 소개</Box>
                             <Box width="10%" textAlign="center">등록 일시</Box>
                             <Box width="10%" textAlign="center">만료 일시</Box>
+                            <Box width="10%" textAlign="center">듀오 신청</Box>
                             <Box width="2%" textAlign="center"></Box>
                         </Box>
                         {isLoading ? (
@@ -609,7 +610,7 @@ export default function ScrimPage() {
                                             <TierBadge tier={row.party?.[0]?.tier} score={row.party?.[0]?.lp}
                                                        rank={row.party?.[0]?.rank}/>
                                         </Box>
-                                        <Box width="10%" textAlign="center">
+                                        <Box width="15%" textAlign="center">
                                             {tab === 0 ? replaceMobileUnivName(row.school) : row.department}
                                         </Box>
                                         <Box width="20%" textAlign="center">
@@ -640,6 +641,25 @@ export default function ScrimPage() {
                                             fontSize: {xs: '0.7rem', sm: '0.75rem'},
                                             color: getExpiryColor(row.updatedAt)
                                         }}>{formatTimeUntilExpiry(row.updatedAt)}</Box>
+                                        <Box width="10%" textAlign="center">
+                                            <Button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedScrim(row);
+                                                    setApplyOpen(true);
+                                                }}
+                                                sx={{
+                                                    backgroundColor: '#424254',
+                                                    color: '#fff',
+                                                    borderRadius: 0.8,
+                                                    fontWeight: 'bold',
+                                                    px: 2,
+                                                    py: { xs: 0.8, sm: 1 },
+                                                    fontSize: { xs: '0.8rem', sm: '0.95rem' },
+                                                    border: '1px solid #71717D'
+                                                }}
+                                            >신청</Button>
+                                        </Box>
                                         <Box width="2%" textAlign="center">
                                             {isMine && (
                                                 <>
