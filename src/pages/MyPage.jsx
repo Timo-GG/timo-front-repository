@@ -43,7 +43,6 @@ export default function MyPage({defaultTab, initialRoomId}) {
         queryFn: () => fetchReceivedRequests(memberId),
         enabled: !!memberId,
     });
-
     const {data: sentUsers = [], refetch: refetchSent} = useQuery({
         queryKey: ['sentRequests', memberId],
         queryFn: () => fetchSentRequests(memberId),

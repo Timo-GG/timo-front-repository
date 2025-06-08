@@ -10,7 +10,7 @@ import {
     Rating,
 } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
-import { submitEvaluation } from '../apis/reviewAPI'; // 상단에 추가
+import { submitEvaluation } from '../apis/reviewAPI';
 
 const ATTITUDE_OPTIONS = ['성실하게 임해요', '노력해요', '집중하지 않아요'];
 const MANNER_OPTIONS = ['매너있는 소환사', '평범한 소환사', '공격적인 소환사'];
@@ -22,20 +22,54 @@ export default function ReviewModal({ open, handleClose, user, onSubmitSuccess }
     const [skill, setSkill] = useState('');
     const [score, setScore] = useState(0);
     const [comment, setComment] = useState('');
-    console.log("user : ", user);
+
     useEffect(() => {
-        if (user) {
-            setAttitude(user.attitude || '');
-            setManner(user.manner || '');
-            setSkill(user.skill || '');
-            setScore(user.score || 0);
-            setComment(user.comment || '');
+        if (user?.reviewData) {
+            // 기존 리뷰 데이터가 있으면 표시
+            setAttitude(mapAttitudeToLabel(user.reviewData.attitude_score) || '');
+            setManner(mapMannerToLabel(user.reviewData.conversation_score) || '');
+            setSkill(mapSkillToLabel(user.reviewData.talent_score) || '');
+            setScore(user.reviewData.evaluation_score || 0);
+            setComment(user.reviewData.memo || '');
+        } else {
+            // 새 리뷰인 경우 초기화
+            setAttitude('');
+            setManner('');
+            setSkill('');
+            setScore(0);
+            setComment('');
         }
     }, [user]);
 
-    const isReadOnly = user?.reviewStatus === 'completed';
+    // 백엔드 Enum을 프론트엔드 라벨로 변환
+    const mapAttitudeToLabel = (enumValue) => {
+        switch (enumValue) {
+            case 'POSITIVE': return '성실하게 임해요';
+            case 'NORMAL': return '노력해요';
+            case 'NEGATIVE': return '집중하지 않아요';
+            default: return '';
+        }
+    };
 
-    if (!user) return null;
+    const mapMannerToLabel = (enumValue) => {
+        switch (enumValue) {
+            case 'POLITE': return '매너있는 소환사';
+            case 'NORMAL': return '평범한 소환사';
+            case 'RUDE': return '공격적인 소환사';
+            default: return '';
+        }
+    };
+
+    const mapSkillToLabel = (enumValue) => {
+        switch (enumValue) {
+            case 'HIGH': return '한 수 배우고 갑니다';
+            case 'NORMAL': return '무난한 플레이';
+            case 'LOW': return '고의 트롤을 해요';
+            default: return '';
+        }
+    };
+
+    // 프론트엔드 라벨을 백엔드 Enum으로 변환
     const mapAttitude = (label) => {
         switch (label) {
             case '성실하게 임해요': return 'POSITIVE';
@@ -62,10 +96,13 @@ export default function ReviewModal({ open, handleClose, user, onSubmitSuccess }
             default: return null;
         }
     };
+
+    const isReadOnly = user?.mode === 'received' || user?.reviewStatus === 'completed';
+    if (!user) return null;
+
     const handleSubmit = async () => {
         try {
             const response = await submitEvaluation({
-                revieweeId: user.memberId,
                 mypageId: user.mypageId,
                 attitudeScore: mapAttitude(attitude),
                 conversationScore: mapManner(manner),
@@ -75,7 +112,7 @@ export default function ReviewModal({ open, handleClose, user, onSubmitSuccess }
             });
 
             console.log('[리뷰 등록 성공]', response);
-            onSubmitSuccess?.(); // ✅ 추가
+            onSubmitSuccess?.();
             handleClose();
         } catch (error) {
             console.error('[리뷰 등록 실패]', error);
