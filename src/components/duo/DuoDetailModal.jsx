@@ -21,7 +21,6 @@ export default function DuoDetailModal({
                                        }) {
     const theme = useTheme();
     if (!partyData) return null;
-
     const genderDisplay = {
         MALE: '남자',
         FEMALE: '여자',
@@ -44,7 +43,7 @@ export default function DuoDetailModal({
         queueType,
         school = 'XX대학교',
         department = 'XX학과',
-        message,
+        memo,
         playStyle,
         status,
         lookingForStyle,
@@ -112,7 +111,7 @@ export default function DuoDetailModal({
                             whiteSpace: 'pre-line',
                         }}
                     >
-                        {message || ''}
+                        {memo || ''}
                     </Box>
                 </Box>
 
