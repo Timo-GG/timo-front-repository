@@ -135,7 +135,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                                 },
                             }}
                         >
-                            {isLoading ? '처리중...' : '수락'}
+                            {isLoading ? '처리중' : '수락'}
                         </Button>
                         <Button
                             variant="contained"
@@ -155,7 +155,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                                 },
                             }}
                         >
-                            {isLoading ? '처리중...' : '거절'}
+                            {isLoading ? '처리중' : '거절'}
                         </Button>
                     </>
                 ) : (
@@ -177,7 +177,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                             },
                         }}
                     >
-                        {isLoading ? '처리중...' : '취소하기'}
+                        {isLoading ? '처리중' : '취소하기'}
                     </Button>
                 )}
             </Box>
