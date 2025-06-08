@@ -824,7 +824,17 @@ function DuoHeader() {
     return (
         <Box sx={headerRowStyle}>
             {headers.map((text, i) => (
-                <Box key={i} sx={{flex: columns[i], textAlign: 'center'}}>
+                <Box
+                    key={i}
+                    sx={{
+                        flex: `${columns[i]} 0 0`, // ✅ flex-grow, flex-shrink, flex-basis 명시
+                        textAlign: 'center',
+                        minWidth: 0, // ✅ 텍스트 오버플로우 방지
+                        // ✅ 각 컬럼별 최소 너비 설정
+                        ...(i === 0 && { minWidth: '180px' }), // 소환사
+                        ...(i === 5 && { minWidth: '200px' }), // 한 줄 소개
+                    }}
+                >
                     {text}
                 </Box>
             ))}
@@ -889,7 +899,14 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 }
             }}
         >
-            <Box sx={{flex: columns[0]}}>
+            <Box sx={{
+                flex: `${columns[0]} 0 0`,
+                minWidth: '180px', // 소환사 정보 최소 너비
+                overflow: 'hidden',
+                textOverflow: 'ellipsis', // ✅ 텍스트가 넘치면 ... 표시
+                whiteSpace: 'nowrap',     // ✅ 텍스트 줄바꿈 방지
+            }}>
+
                 <SummonerInfo name={user.name} avatarUrl={user.avatarUrl} tag={user.tag} school={user.school}/>
             </Box>
             <Box sx={{flex: columns[1], textAlign: 'center'}}>{user.queueType}</Box>
@@ -1021,6 +1038,7 @@ const headerRowStyle = {
     backgroundColor: '#28282F',
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
+    minWidth: 'fit-content',
 };
 
 const itemRowStyle = {
@@ -1032,6 +1050,7 @@ const itemRowStyle = {
     borderBottom: '2px solid #12121a',
     cursor: 'pointer',
     '&:hover': {backgroundColor: '#2E2E38'},
+    minWidth: 'fit-content',
 };
 
 const applyBtnStyle = {
