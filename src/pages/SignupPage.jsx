@@ -6,7 +6,11 @@ import {
     Button,
     useTheme,
     Checkbox,
-    FormControlLabel
+    FormControlLabel,
+    Paper,
+    List,
+    ListItem,
+    ListItemText
 } from '@mui/material';
 import {useNavigate} from 'react-router-dom';
 import {updateUsername, verifyAccount, resetRiotAccount, registerRanking, updateUserAgreement} from '../apis/accountAPI';
@@ -21,6 +25,7 @@ import {
 import {getMyInfo} from '../apis/authAPI';
 import useAuthStore from '../storage/useAuthStore';
 import TermsModal from '../components/TermsModal';
+import { univJson } from '../data/univJson'; // univJson.js 파일 경로에 맞게 수정
 
 export default function SignupPage() {
     const theme = useTheme();
@@ -54,6 +59,11 @@ export default function SignupPage() {
     const [privacyAgreed, setPrivacyAgreed] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState('');
+
+    const [universitySearch, setUniversitySearch] = useState('');
+    const [filteredUniversities, setFilteredUniversities] = useState([]);
+    const [focusedUniversityIndex, setFocusedUniversityIndex] = useState(-1);
+    const universities = univJson.universities; // 배열 추출
 
     const openModal = (type) => {
         setModalType(type);
@@ -120,6 +130,18 @@ export default function SignupPage() {
         })();
     }, []);
 
+    useEffect(() => {
+        if (!universitySearch || !universities) {
+            setFilteredUniversities([]);
+            return;
+        }
+
+        const result = universities.filter((univ) =>
+            univ.toLowerCase().includes(universitySearch.toLowerCase())
+        );
+        setFilteredUniversities(result.slice(0, 10)); // 최대 10개만 표시
+    }, [universitySearch]);
+
     // 소환사 인증/해제 핸들러
     const handleSummonerToggle = useCallback(async () => {
         setSummonerStatusMsg('');
@@ -162,24 +184,23 @@ export default function SignupPage() {
     }, [isSummonerVerified, summonerName]);
 
     // 대학교 확인/해제 핸들러
+    // 대학교 확인/해제 핸들러 수정
     const handleUniversityCheck = useCallback(async () => {
         if (isUniversityLocked) {
             try {
-                // 대학 이메일 초기화 API 호출
                 await updateUnivAccount({univName: null, univEmail: null});
-
-                // 상태 초기화
                 setIsUniversityLocked(false);
                 setIsUniversityValid(false);
                 setIsUniversityVerified(false);
                 setUniversity('');
+                setUniversitySearch(''); // 검색어도 초기화
                 setSchoolEmail('');
                 setEmailError('');
                 setEmailSent(false);
                 setShowVerificationInput(false);
                 setUniversityStatus('');
+                setFilteredUniversities([]); // 필터된 목록도 초기화
 
-                // 사용자 정보 업데이트
                 const {data: profile} = await getMyInfo();
                 setUserData(profile);
 
@@ -458,44 +479,122 @@ export default function SignupPage() {
             {/* 대학교 */}
             <Box>
                 <Typography color="text.secondary" sx={{mb: 1}}>대학교</Typography>
-                <Box sx={{display: 'flex', height: '56px'}}>
-                    <TextField
-                        fullWidth
-                        value={university}
-                        onChange={(e) => {
-                            setUniversity(e.target.value);
-                            setUniversityStatus('');
-                        }}
-                        disabled={isUniversityLocked}
-                        variant="outlined"
-                        placeholder="서울과학기술대학교"
-                        sx={{
-                            '& .MuiOutlinedInput-root': {
+                <Box sx={{ position: 'relative' }}>
+                    <Box sx={{display: 'flex', height: '56px'}}>
+                        <TextField
+                            fullWidth
+                            value={universitySearch}
+                            onChange={(e) => {
+                                setUniversitySearch(e.target.value);
+                                setUniversity('');
+                                setUniversityStatus('');
+                                setFocusedUniversityIndex(-1);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'ArrowDown') {
+                                    setFocusedUniversityIndex((prev) =>
+                                        Math.min(prev + 1, filteredUniversities.length - 1)
+                                    );
+                                } else if (e.key === 'ArrowUp') {
+                                    setFocusedUniversityIndex((prev) => Math.max(prev - 1, 0));
+                                } else if (e.key === 'Enter' && focusedUniversityIndex >= 0) {
+                                    const selected = filteredUniversities[focusedUniversityIndex];
+                                    setUniversity(selected);
+                                    setUniversitySearch(selected);
+                                    setFilteredUniversities([]);
+                                    setFocusedUniversityIndex(-1);
+                                }
+                            }}
+                            disabled={isUniversityLocked}
+                            variant="outlined"
+                            placeholder="서울과학기술대학교"
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    height: '100%',
+                                    borderRadius: '12px 0 0 12px',
+                                    backgroundColor: theme.palette.background.input,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    '& fieldset': {borderColor: 'transparent'},
+                                    '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
+                                },
+                            }}
+                        />
+                        <Button
+                            onClick={handleUniversityCheck}
+                            sx={{
                                 height: '100%',
-                                borderRadius: '12px 0 0 12px',
+                                borderRadius: '0 12px 12px 0',
                                 backgroundColor: theme.palette.background.input,
+                                color: theme.palette.text.secondary,
                                 border: `1px solid ${theme.palette.border.main}`,
-                                '& fieldset': {borderColor: 'transparent'},
-                                '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
-                            },
-                        }}
-                    />
-                    <Button
-                        onClick={handleUniversityCheck}
-                        sx={{
-                            height: '100%',
-                            borderRadius: '0 12px 12px 0',
-                            backgroundColor: theme.palette.background.input,
-                            color: theme.palette.text.secondary,
-                            border: `1px solid ${theme.palette.border.main}`,
-                            borderLeft: 'none',
-                            px: 3,
-                            minWidth: '80px',
-                        }}
-                    >
-                        {isUniversityLocked ? '해제' : '확인'}
-                    </Button>
+                                borderLeft: 'none',
+                                px: 3,
+                                minWidth: '80px',
+                            }}
+                        >
+                            {isUniversityLocked ? '해제' : '확인'}
+                        </Button>
+                    </Box>
+
+                    {/* 대학교 검색 결과 드롭다운 */}
+                    {filteredUniversities.length > 0 && universitySearch !== university && !isUniversityLocked && (
+                        <Paper
+                            sx={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 10,
+                                backgroundColor: theme.palette.background.paper,
+                                border: `1px solid ${theme.palette.border.main}`,
+                                borderTop: 'none',
+                                borderBottomLeftRadius: 12,
+                                borderBottomRightRadius: 12,
+                                maxHeight: 200,
+                                overflowY: 'auto',
+                                boxShadow: theme.shadows[4],
+                            }}
+                        >
+                            <List dense>
+                                {filteredUniversities.map((univ, index) => (
+                                    <ListItem
+                                        key={index}
+                                        selected={focusedUniversityIndex === index}
+                                        onMouseEnter={() => setFocusedUniversityIndex(index)}
+                                        onClick={() => {
+                                            setUniversity(univ);
+                                            setUniversitySearch(univ);
+                                            setFilteredUniversities([]);
+                                            setFocusedUniversityIndex(-1);
+                                        }}
+                                        sx={{
+                                            px: 2,
+                                            py: 1,
+                                            cursor: 'pointer',
+                                            bgcolor: focusedUniversityIndex === index
+                                                ? theme.palette.action.hover
+                                                : 'inherit',
+                                            '&:hover': {
+                                                bgcolor: theme.palette.action.hover,
+                                            },
+                                        }}
+                                    >
+                                        <ListItemText
+                                            primary={univ}
+                                            sx={{
+                                                '& .MuiListItemText-primary': {
+                                                    fontSize: '0.9rem',
+                                                    color: theme.palette.text.primary,
+                                                }
+                                            }}
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </Paper>
+                    )}
                 </Box>
+
                 {universityStatus && (
                     <Typography
                         variant="caption"
