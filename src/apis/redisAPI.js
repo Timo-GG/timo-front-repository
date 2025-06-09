@@ -93,7 +93,7 @@ export const fetchAllDuoBoards = async (page = 0, size = 10) => {
                         : item.mapCode === 'NORMAL'
                             ? '일반'
                             : '칼바람',
-                message: item.memo,
+                memo: item.memo,
                 position: userInfo.myPosition?.toLowerCase() || '',
                 playStyle: userInfo.myStyle?.toLowerCase() || '',
                 status: userInfo.myStatus?.toLowerCase() || '',

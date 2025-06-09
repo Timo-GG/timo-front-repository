@@ -38,7 +38,6 @@ export default function DuoDetailModal({
         continue: "계속 플레이",
         last: "마지막판"
     };
-
     const {
         queueType,
         school = 'XX대학교',
