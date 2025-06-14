@@ -25,9 +25,9 @@ import useAuthStore from '../storage/useAuthStore';
 const POSITION_LIST = ['nothing', 'top', 'jungle', 'mid', 'bottom', 'support'];
 
 export default function ProfileSetupPage() {
-    const [position, setPosition] = useState('');
+    const [position, setPosition] = useState('nothing');
     const [department, setDepartment] = useState('');
-    const [selectedGender, setSelectedGender] = useState('');
+    const [selectedGender, setSelectedGender] = useState('비밀');
     const [selectedMbti, setSelectedMbti] = useState([]);
     const [memo, setMemo] = useState('');
     const [search, setSearch] = useState('');

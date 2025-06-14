@@ -25,6 +25,7 @@ import {
 import {getMyInfo} from '../apis/authAPI';
 import useAuthStore from '../storage/useAuthStore';
 import TermsModal from '../components/TermsModal';
+import ConfirmDialog from '../components/ConfirmDialog';
 import { univJson } from '../data/univJson'; // univJson.js 파일 경로에 맞게 수정
 
 export default function SignupPage() {
@@ -54,6 +55,8 @@ export default function SignupPage() {
     const [nicknameStatus, setNicknameStatus] = useState('');
     const [nicknameError, setNicknameError] = useState('');
 
+    const [skipDialogOpen, setSkipDialogOpen] = useState(false);
+
     const [allAgreed, setAllAgreed] = useState(false);
     const [termsAgreed, setTermsAgreed] = useState(false);
     const [privacyAgreed, setPrivacyAgreed] = useState(false);
@@ -70,9 +73,19 @@ export default function SignupPage() {
         setModalOpen(true);
     };
 
+    const isFormComplete = () => {
+        return (
+            nickname.trim() !== '' &&
+            isSummonerVerified &&
+            isUniversityVerified &&
+            termsAgreed &&
+            privacyAgreed
+        );
+    };
+
     const handleNext = () => {
-        if (!termsAgreed || !privacyAgreed) {
-            alert('서비스 이용약관과 개인정보 수집·이용에 모두 동의해주세요.');
+        if (!isFormComplete()) {
+            alert('모든 필수 항목을 완료해주세요.\n- 닉네임 설정\n- 소환사 계정 인증\n- 대학교 인증\n- 개인정보 동의');
             return;
         }
 
@@ -83,7 +96,7 @@ export default function SignupPage() {
                     const info = await getMyInfo();
                     const puuid = info.data.riotAccount?.puuid;
                     if (puuid) {
-                        registerRanking(puuid); // await 제거 - 비동기로 처리
+                        registerRanking(puuid);
                     }
                 } catch (err) {
                     console.error('랭킹 등록 실패:', err);
@@ -96,6 +109,10 @@ export default function SignupPage() {
         });
     };
 
+    const handleSkipConfirm = () => {
+        navigate('/')
+    };
+
     // 초기 사용자 정보 로드
     useEffect(() => {
         (async () => {
@@ -106,12 +123,23 @@ export default function SignupPage() {
                 setOauthEmail(profile.email || '');
                 setNickname(profile.username || '');
 
-                if (profile.riotAccount) {
+                // 🔥 RiotAccount null 체크 추가
+                if (profile.riotAccount &&
+                    profile.riotAccount.accountName &&
+                    profile.riotAccount.accountTag &&
+                    profile.riotAccount.accountName !== 'null' &&
+                    profile.riotAccount.accountTag !== 'null') {
+
                     const {accountName, accountTag, puuid} = profile.riotAccount;
                     setSummonerName(`${accountName}#${accountTag}`);
                     setIsSummonerVerified(true);
                     setSummonerVerified(true);
                     setSummonerStatusMsg('✔️ 인증 완료되었습니다.');
+                } else {
+                    // RiotAccount가 null이거나 값이 유효하지 않은 경우
+                    setSummonerName('');
+                    setIsSummonerVerified(false);
+                    setSummonerStatusMsg('');
                 }
 
                 if (profile.certifiedUnivInfo) {
@@ -122,7 +150,7 @@ export default function SignupPage() {
                     setIsUniversityValid(true);
                     setIsUniversityVerified(true);
                     setUniversityStatus('✔️ 이미 인증이 완료된 대학교 계정입니다.');
-                    setEmailError(''); // 이메일 에러 초기화
+                    setEmailError('');
                 }
             } catch (err) {
                 console.error('유저 정보 불러오기 실패:', err);
@@ -327,7 +355,24 @@ export default function SignupPage() {
                 gap: 3,
             }}
         >
-            <Typography variant="h5" fontWeight="bold">회원가입</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h5" fontWeight="bold">회원가입</Typography>
+                <Button
+                    variant="text"
+                    onClick={() => setSkipDialogOpen(true)}
+                    sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.9rem',
+                        textDecoration: 'underline',
+                        '&:hover': {
+                            backgroundColor: 'transparent',
+                            textDecoration: 'underline',
+                        }
+                    }}
+                >
+                    다음에 하기
+                </Button>
+            </Box>
 
             {/* 이메일 */}
             <Box>
@@ -798,18 +843,37 @@ export default function SignupPage() {
             <Button
                 variant="contained"
                 fullWidth
+                disabled={!isFormComplete()} // 🔥 조건부 비활성화
                 sx={{
                     height: '56px',
                     borderRadius: '12px',
-                    backgroundColor: theme.palette.primary.main,
-                    color: 'white',
+                    backgroundColor: isFormComplete()
+                        ? theme.palette.primary.main
+                        : theme.palette.action.disabled,
+                    color: isFormComplete() ? 'white' : theme.palette.text.disabled,
                     fontWeight: 'bold',
                     mt: 4,
+                    '&:disabled': {
+                        backgroundColor: '#424254',
+                        color: theme.palette.text.disabled,
+                    }
                 }}
                 onClick={handleNext}
             >
-                다음
+                다음 {!isFormComplete() && '(모든 항목을 완료해주세요)'}
             </Button>
+
+            {/* 🔥 다음에 하기 확인 다이얼로그 */}
+            <ConfirmDialog
+                open={skipDialogOpen}
+                onClose={() => setSkipDialogOpen(false)}
+                onConfirm={handleSkipConfirm}
+                title="정말 다음에 하시겠습니까?"
+                message="저희 서비스를 원활하게 이용하려면 소환사 계정 인증과 대학교 인증이 필요합니다. 나중에 마이페이지에서 언제든지 인증하실 수 있습니다."
+                confirmText="다음에 하기"
+                cancelText="계속 작성하기"
+                danger={false}
+            />
 
             {/* 모달 */}
             <TermsModal
