@@ -115,10 +115,21 @@ export default function Header() {
         {label: '랭킹', path: '/ranking'},
         {label: '내전', path: '/scrim'},
         {label: '듀오 찾기', path: '/duo'},
-        {label: '마이페이지', path: '/mypage'},
+        {label: '마이페이지', path: '/mypage', requireAuth: true},
     ];
 
     const [isVisible, setIsVisible] = useState(true);
+
+    const handleMenuClick = (item) => {
+        // 인증이 필요한 페이지인데 로그인되지 않은 경우
+        if (item.requireAuth && !accessToken) {
+            setIsLoginModalOpen(true);
+            return;
+        }
+
+        // 로그인된 경우 또는 인증이 필요없는 페이지인 경우
+        navigate(item.path);
+    };
 
     if (!isVisible) return null;
     const NoticeBanner = () => {
@@ -359,7 +370,7 @@ export default function Header() {
                                     return (
                                         <Typography
                                             key={item.path}
-                                            onClick={() => navigate(item.path)}
+                                            onClick={() => handleMenuClick(item)} // 🔥 새로운 핸들러 사용
                                             variant="body1"
                                             sx={{
                                                 cursor: 'pointer',
@@ -520,6 +531,7 @@ export default function Header() {
             <LoginModal
                 open={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
+                redirectTo={location.pathname} // 🔥 현재 경로를 redirectTo로 전달
             />
         </>
     );
