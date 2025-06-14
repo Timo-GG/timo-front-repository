@@ -132,63 +132,6 @@ export default function Header() {
     };
 
     if (!isVisible) return null;
-    const NoticeBanner = () => {
-        const [isVisible, setIsVisible] = useState(true);
-
-        if (!isVisible) return null;
-
-        return (
-            <Box sx={{
-                backgroundColor: '#ff6b35',
-                color: '#fff',
-                py: 1,
-                px: 2,
-                textAlign: 'center',
-                position: 'relative',
-                borderBottom: '1px solid #e55a2b'
-            }}>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        fontWeight: 'bold',
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' }
-                    }}
-                >
-                    추가기능 도입 예정 (시험기간 후)
-                    <Link
-                        href="https://url.kr/cwo6rj"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                            color: '#fff',
-                            marginLeft: '16px',
-                            textDecoration: 'underline',
-                            '&:hover': {
-                                color: '#ffe0d6'
-                            }
-                        }}
-                    >
-                        건의사항 링크
-                    </Link>
-                </Typography>
-                <IconButton
-                    size="small"
-                    onClick={() => setIsVisible(false)}
-                    sx={{
-                        position: 'absolute',
-                        right: 8,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                        p: 0.5
-                    }}
-                >
-                    ✕
-                </IconButton>
-            </Box>
-        );
-    };
 
     useEffect(() => {
         if (!accessToken) return;
@@ -527,7 +470,6 @@ export default function Header() {
 
                 </Box>
             </AppBar>
-            <NoticeBanner />
             <LoginModal
                 open={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
