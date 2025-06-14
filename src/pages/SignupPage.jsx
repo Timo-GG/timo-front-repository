@@ -374,6 +374,71 @@ export default function SignupPage() {
                 </Button>
             </Box>
 
+            {/* 개인정보 동의 */}
+            <Box sx={{ mt: 3 }}>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>개인정보 동의</Typography>
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={termsAgreed}
+                            onChange={(e) => setTermsAgreed(e.target.checked)}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
+                            <span
+                                onClick={() => openModal('terms')}
+                                style={{
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                서비스 이용약관
+                            </span>에 동의합니다. (필수)
+                        </Typography>
+                    }
+                    sx={{mb: 1, alignItems: 'flex-start'}}
+                />
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={privacyAgreed}
+                            onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
+                            <span
+                                onClick={() => openModal('privacy')}
+                                style={{
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                개인정보 수집·이용
+                            </span>에 동의합니다. (필수)
+                        </Typography>
+                    }
+                    sx={{mb: 1, alignItems: 'flex-start'}}
+                />
+            </Box>
+
             {/* 이메일 */}
             <Box>
                 <Typography color="text.secondary" mb={1}>이메일</Typography>
@@ -773,71 +838,6 @@ export default function SignupPage() {
                     </Box>
                 </Box>
             )}
-
-            {/* 개인정보 동의 */}
-            <Box sx={{ mt: 3 }}>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>개인정보 동의</Typography>
-
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={termsAgreed}
-                            onChange={(e) => setTermsAgreed(e.target.checked)}
-                            sx={{
-                                color: theme.palette.text.secondary,
-                                '&.Mui-checked': {
-                                    color: theme.palette.primary.main,
-                                },
-                            }}
-                        />
-                    }
-                    label={
-                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
-                            <span
-                                onClick={() => openModal('terms')}
-                                style={{
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                서비스 이용약관
-                            </span>에 동의합니다. (필수)
-                        </Typography>
-                    }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
-                />
-
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={privacyAgreed}
-                            onChange={(e) => setPrivacyAgreed(e.target.checked)}
-                            sx={{
-                                color: theme.palette.text.secondary,
-                                '&.Mui-checked': {
-                                    color: theme.palette.primary.main,
-                                },
-                            }}
-                        />
-                    }
-                    label={
-                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
-                            <span
-                                onClick={() => openModal('privacy')}
-                                style={{
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                개인정보 수집·이용
-                            </span>에 동의합니다. (필수)
-                        </Typography>
-                    }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
-                />
-            </Box>
 
             {/* 다음 버튼 */}
             <Button
