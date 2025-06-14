@@ -60,3 +60,10 @@ export const deleteAccount = async () => {
     });
     return response.data;
 }
+
+export const linkRiotAccount = async (authorizationCode) => {
+    const response = await axiosInstance.post('/members/riot/link', {
+        authorizationCode
+    }, { withAuth: true });
+    return response.data;
+};

@@ -111,7 +111,7 @@ export default function SignupPage() {
                     setSummonerName(`${accountName}#${accountTag}`);
                     setIsSummonerVerified(true);
                     setSummonerVerified(true);
-                    setSummonerStatusMsg('✔️ 이미 인증이 완료된 소환사 계정입니다.');
+                    setSummonerStatusMsg('✔️ 인증 완료되었습니다.');
                 }
 
                 if (profile.certifiedUnivInfo) {
