@@ -66,13 +66,25 @@ export default function MySettingPage() {
         setUsername(userData.username || '');
 
         // 2) 소환사(롤) 계정이 이미 등록돼 있으면 input 락, 메시지 세팅
-        if (userData.riotAccount) {
+        // ✅ 수정: 실제 데이터가 있는지 확인
+        if (userData.riotAccount &&
+            userData.riotAccount.accountName &&
+            userData.riotAccount.accountTag &&
+            userData.riotAccount.accountName !== 'null' &&
+            userData.riotAccount.accountTag !== 'null') {
+
             const {accountName, accountTag} = userData.riotAccount;
             setRiotAccountInput(`${accountName}#${accountTag}`);
             setIsSummonerVerified(true);
+            setSummonerStatusMsg('✔️ 이미 인증이 완료된 소환사 계정입니다.');
+        } else {
+            // 빈 RiotAccount 객체이거나 null인 경우 초기화
+            setRiotAccountInput('');
+            setIsSummonerVerified(false);
+            setSummonerStatusMsg('');
         }
 
-        // 3) 인증된 학교 정보가 있으면, 학교명·이메일 모두 락, 확인 메시지 세팅
+        // 3) 인증된 학교 정보 처리는 기존과 동일
         if (userData.certifiedUnivInfo) {
             const {univName: savedName, univCertifiedEmail: savedEmail} = userData.certifiedUnivInfo;
             setUnivName(savedName);
@@ -83,7 +95,6 @@ export default function MySettingPage() {
             setIsUnivEmailSent(false);
             setShowUnivCodeInput(false);
         } else {
-            // 인증된 학교 정보가 없으면 모두 초기 상태
             setIsUnivNameValid(false);
             setIsUnivNameLocked(false);
             setIsUnivEmailVerified(false);
