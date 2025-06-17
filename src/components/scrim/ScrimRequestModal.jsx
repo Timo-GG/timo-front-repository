@@ -13,140 +13,54 @@ import SummonerInfo from '../SummonerInfo';
 import TierBadge from '../TierBadge';
 import ChampionIconList from '../champion/ChampionIconList';
 import PositionIcon from '../PositionIcon';
+import TruncatedMessageBox from '../TruncatedMessageBox';
 
 export default function ScrimRequestModal({
-    open,
-    handleClose,
-    partyId,
-    scrims = [],
-}) {
-    // scrims 배열에서 partyId에 해당하는 내전(파티) 찾기
-    const partyData = scrims.find(item => item.id === partyId);
-    if (!partyData) return null;
+                                              open,
+                                              handleClose,
+                                              scrimData = null,
+                                          }) {
+    if (!scrimData) return null;
 
-    // 예시: partyData에 다음 필드가 있다고 가정
-    // {
-    //   id,
-    //   map,         // 큐 타입 or 맵 (ex. "소환사 협곡")
-    //   people,      // 내전 인원 (ex. "5:5")
-    //   ourTeam: [], // 우리 팀 정보
-    //   enemyTeam: []// 상대 팀 정보
-    //   ourSchool, ourDepartment,
-    //   enemySchool, enemyDepartment,
-    //   ...
-    // }
+    // API 데이터에서 필요한 정보 추출
     const {
-        map = '무작위',
-        people = '5:5',
-        ourSchool = '우리대학교',
-        ourDepartment = '우리학과',
-        enemySchool = '상대대학교',
-        enemyDepartment = '상대학과',
-        ourTeam = [
-            {
-                id: 1,
-                name: "롤10년차고인물",
-                tag: "1234",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/1111.png',
-                position: "top",
-                tier: "emerald",
-                score: 1,
-                champions: ['Amumu', 'LeeSin', 'Graves'],
-            },
-            {
-                id: 2,
-                name: "듀오장인티모",
-                tag: "5678",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/1234.png',
-                position: "jungle",
-                tier: "platinum",
-                score: 3,
-                champions: ['Garen', 'Darius', 'Riven'],
-            },
-            {
-                id: 3,
-                name: "팀랭마스터",
-                tag: "8765",
-                avatarUrl: "https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/5678.png",
-                position: "mid",
-                tier: "emerald",
-                score: 3,
-                champions: ['Zed', 'Ahri', 'Lux'],
-            },
-            {
-                id: 4,
-                name: "정글잘함",
-                tag: "1111",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/4567.png',
-                position: "bottom",
-                tier: "gold",
-                score: 2,
-                champions: ['Ezreal', 'Yasuo', 'Jhin'],
-            },
-            {
-                id: 5,
-                name: "라인전고수",
-                tag: "2222",
-                avatarUrl: 'https://opgg-static.akamaized.net/meta/images/profile_icons/profileIcon2098.jpg?image=q_auto:good,f_webp,w_200&v=1744455113',
-                position: "support",
-                tier: "diamond",
-                score: 2,
-                champions: ['Thresh', 'Braum', 'Leona'],
-            },
-        ],
-        enemyTeam = [
-            {
-                id: 1,
-                name: "롤10년차고인물",
-                tag: "1234",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/1111.png',
-                position: "top",
-                tier: "emerald",
-                score: 1,
-                champions: ['Amumu', 'LeeSin', 'Graves'],
-            },
-            {
-                id: 2,
-                name: "듀오장인티모",
-                tag: "5678",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/1234.png',
-                position: "jungle",
-                tier: "platinum",
-                score: 3,
-                champions: ['Garen', 'Darius', 'Riven'],
-            },
-            {
-                id: 3,
-                name: "팀랭마스터",
-                tag: "8765",
-                avatarUrl: "https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/5678.png",
-                position: "mid",
-                tier: "emerald",
-                score: 3,
-                champions: ['Zed', 'Ahri', 'Lux'],
-            },
-            {
-                id: 4,
-                name: "정글잘함",
-                tag: "1111",
-                avatarUrl: 'https://ddragon.leagueoflegends.com/cdn/13.6.1/img/profileicon/4567.png',
-                position: "bottom",
-                tier: "gold",
-                score: 2,
-                champions: ['Ezreal', 'Yasuo', 'Jhin'],
-            },
-            {
-                id: 5,
-                name: "라인전고수",
-                tag: "2222",
-                avatarUrl: 'https://opgg-static.akamaized.net/meta/images/profile_icons/profileIcon2098.jpg?image=q_auto:good,f_webp,w_200&v=1744455113',
-                position: "support",
-                tier: "diamond",
-                score: 2,
-                champions: ['Thresh', 'Braum', 'Leona'],
-            },
-        ],
-    } = partyData;
+        mapCode,
+        headCount,
+        acceptor,
+        requestor,
+        acceptorMemo,
+        requestorMemo
+    } = scrimData;
+
+    // 맵 코드를 한글로 변환
+    const mapName = mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락';
+
+    // 인원수 표시 (예: "5:5")
+    const peopleCount = `${headCount}:${headCount}`;
+
+    // acceptor 팀 정보 (게시글 작성자 팀)
+    const acceptorTeam = acceptor?.partyInfo || [];
+    const acceptorSchool = acceptor?.memberInfo?.univName || '미인증';
+    const acceptorDepartment = acceptor?.memberInfo?.department || '';
+
+    // requestor 팀 정보 (신청자 팀)
+    const requestorTeam = requestor?.partyInfo || [];
+    const requestorSchool = requestor?.memberInfo?.univName || '미인증';
+    const requestorDepartment = requestor?.memberInfo?.department || '';
+
+    // 팀 멤버 데이터 변환 함수
+    const transformMemberData = (member) => ({
+        name: member.gameName || '',
+        tag: member.tagLine || '',
+        avatarUrl: member.profileUrl || '/default.png',
+        position: member.myPosition?.toLowerCase() || 'nothing',
+        tier: member.rankInfo?.tier?.toLowerCase() || 'unranked',
+        rank: member.rankInfo?.rank || '',
+        lp: member.rankInfo?.lp || 0,
+        wins: member.rankInfo?.wins || 0,
+        losses: member.rankInfo?.losses || 0,
+        champions: member.most3Champ || []
+    });
 
     return (
         <Dialog open={open} onClose={handleClose} fullWidth maxWidth="lg">
@@ -160,7 +74,7 @@ export default function ScrimRequestModal({
                                 맵
                             </Typography>
                             <Typography fontSize="0.75rem" color="#fff">
-                                {map || ''}
+                                {mapName}
                             </Typography>
                         </Box>
                         <Box display="flex" alignItems="center" gap={1}>
@@ -168,7 +82,7 @@ export default function ScrimRequestModal({
                                 내전 인원
                             </Typography>
                             <Typography fontSize="0.75rem" color="#fff">
-                                {people || ''}
+                                {peopleCount}
                             </Typography>
                         </Box>
                     </Box>
@@ -180,31 +94,29 @@ export default function ScrimRequestModal({
                 </Box>
             </Box>
 
-
             {/* 구분선 */}
             <Box sx={{ height: '1px', backgroundColor: '#171717' }} />
 
             {/* 내용 영역: 좌우 패널로 구분 */}
             <DialogContent sx={{ backgroundColor: '#2B2C3C' }}>
                 <Box sx={{ display: 'flex', gap: 3 }}>
-                    {/* ---------------- 왼쪽 패널: 우리 팀 ---------------- */}
+                    {/* ---------------- 왼쪽 패널: acceptor 팀 (게시글 작성자) ---------------- */}
                     <Box sx={{ flex: 1 }}>
-                        {/* 상단 제목: "우리 팀" */}
-                        <Typography
-                            fontSize="1rem"
-                            color="#A5A5A5"
-                            sx={{ textAlign: 'center', mb: 1 }}
-                        >
-                            우리 팀
-                        </Typography>
                         {/* 학교/학과 */}
                         <Typography
                             fontSize="0.85rem"
                             color="#A5A5A5"
-                            sx={{ textAlign: 'center', mb: 2 }}
+                            sx={{ textAlign: 'center', mb: 1 }}
                         >
-                            {`${ourSchool} ${ourDepartment}`}
+                            {`${acceptorSchool} ${acceptorDepartment}`}
                         </Typography>
+
+                        {/* 메모 - 기존 TruncatedMessageBox 사용 */}
+                        {acceptorMemo && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                                <TruncatedMessageBox message={acceptorMemo} />
+                            </Box>
+                        )}
 
                         {/* 테이블 헤더 */}
                         <Box
@@ -228,10 +140,13 @@ export default function ScrimRequestModal({
                             </Box>
                         </Box>
 
-                        {/* 우리 팀 멤버 목록 */}
+                        {/* acceptor 팀 멤버 목록 */}
                         <Box>
-                            {ourTeam.map((member, idx) => {
-                                if (!member.name) return null;
+                            {acceptorTeam.map((member, idx) => {
+                                const transformedMember = transformMemberData(member);
+
+                                // 빈 멤버는 표시하지 않음
+                                if (!transformedMember.name) return null;
 
                                 return (
                                     <Box
@@ -245,30 +160,30 @@ export default function ScrimRequestModal({
                                         {/* 소환사 이름 */}
                                         <Box width="30%" display="flex" alignItems="center" gap={1}>
                                             <SummonerInfo
-                                                name={member.name}
-                                                avatarUrl={member.avatarUrl}
-                                                tag={member.tag}
+                                                name={transformedMember.name}
+                                                avatarUrl={transformedMember.avatarUrl}
+                                                tag={transformedMember.tag}
                                                 copyable
                                             />
                                         </Box>
 
                                         {/* 포지션 */}
                                         <Box width="10%" textAlign="center">
-                                            <PositionIcon position={member.position} />
+                                            <PositionIcon position={transformedMember.position} />
                                         </Box>
 
                                         {/* 티어 */}
                                         <Box width="15%" textAlign="center">
-                                            {member.tier ? (
-                                                <TierBadge tier={member.tier} score={member.score} />
-                                            ) : (
-                                                <TierBadge tier="unrank" />
-                                            )}
+                                            <TierBadge
+                                                tier={transformedMember.tier}
+                                                score={transformedMember.lp}
+                                                rank={transformedMember.rank}
+                                            />
                                         </Box>
 
                                         {/* 모스트 챔피언 */}
                                         <Box width="40%" display="flex" justifyContent="center">
-                                            <ChampionIconList championNames={member.champions || []} />
+                                            <ChampionIconList championNames={transformedMember.champions} />
                                         </Box>
                                     </Box>
                                 );
@@ -276,24 +191,23 @@ export default function ScrimRequestModal({
                         </Box>
                     </Box>
 
-                    {/* ---------------- 오른쪽 패널: 상대 팀 ---------------- */}
+                    {/* ---------------- 오른쪽 패널: requestor 팀 (신청자) ---------------- */}
                     <Box sx={{ flex: 1 }}>
-                        {/* 상단 제목: "상대 팀" */}
-                        <Typography
-                            fontSize="1rem"
-                            color="#A5A5A5"
-                            sx={{ textAlign: 'center', mb: 1 }}
-                        >
-                            상대 팀
-                        </Typography>
                         {/* 학교/학과 */}
                         <Typography
                             fontSize="0.85rem"
                             color="#A5A5A5"
-                            sx={{ textAlign: 'center', mb: 2 }}
+                            sx={{ textAlign: 'center', mb: 1 }}
                         >
-                            {`${enemySchool} ${enemyDepartment}`}
+                            {`${requestorSchool} ${requestorDepartment}`}
                         </Typography>
+
+                        {/* 메모 - 기존 TruncatedMessageBox 사용 */}
+                        {requestorMemo && (
+                            <Box sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}>
+                                <TruncatedMessageBox message={requestorMemo} />
+                            </Box>
+                        )}
 
                         {/* 테이블 헤더 */}
                         <Box
@@ -317,10 +231,13 @@ export default function ScrimRequestModal({
                             </Box>
                         </Box>
 
-                        {/* 상대 팀 멤버 목록 */}
+                        {/* requestor 팀 멤버 목록 */}
                         <Box>
-                            {enemyTeam.map((member, idx) => {
-                                if (!member.name) return null;
+                            {requestorTeam.map((member, idx) => {
+                                const transformedMember = transformMemberData(member);
+
+                                // 빈 멤버는 표시하지 않음
+                                if (!transformedMember.name) return null;
 
                                 return (
                                     <Box
@@ -334,30 +251,30 @@ export default function ScrimRequestModal({
                                         {/* 소환사 이름 */}
                                         <Box width="30%" display="flex" alignItems="center" gap={1}>
                                             <SummonerInfo
-                                                name={member.name}
-                                                avatarUrl={member.avatarUrl}
-                                                tag={member.tag}
+                                                name={transformedMember.name}
+                                                avatarUrl={transformedMember.avatarUrl}
+                                                tag={transformedMember.tag}
                                                 copyable
                                             />
                                         </Box>
 
                                         {/* 포지션 */}
                                         <Box width="10%" textAlign="center">
-                                            <PositionIcon position={member.position} />
+                                            <PositionIcon position={transformedMember.position} />
                                         </Box>
 
                                         {/* 티어 */}
                                         <Box width="15%" textAlign="center">
-                                            {member.tier ? (
-                                                <TierBadge tier={member.tier} score={member.score} />
-                                            ) : (
-                                                <TierBadge tier="unrank" />
-                                            )}
+                                            <TierBadge
+                                                tier={transformedMember.tier}
+                                                score={transformedMember.lp}
+                                                rank={transformedMember.rank}
+                                            />
                                         </Box>
 
                                         {/* 모스트 챔피언 */}
                                         <Box width="40%" display="flex" justifyContent="center">
-                                            <ChampionIconList championNames={member.champions || []} />
+                                            <ChampionIconList championNames={transformedMember.champions} />
                                         </Box>
                                     </Box>
                                 );
@@ -369,4 +286,3 @@ export default function ScrimRequestModal({
         </Dialog>
     );
 }
-

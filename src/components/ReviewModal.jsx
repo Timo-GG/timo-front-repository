@@ -141,7 +141,7 @@ export default function ReviewModal({ open, handleClose, user, onSubmitSuccess }
                         py: 1,
                         cursor: isReadOnly ? 'default' : 'pointer',
                         borderRadius: 1,
-                        fontSize: '0.8rem',
+                        fontSize: { xs: '0.6rem', sm: '0.8rem' },
                         color: selectedValue === opt ? '#fff' : '#888',
                         fontWeight: selectedValue === opt ? 'bold' : 'normal',
                         backgroundColor: selectedValue === opt ? '#42E6B5' : 'transparent',

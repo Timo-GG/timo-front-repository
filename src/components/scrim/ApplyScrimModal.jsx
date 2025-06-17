@@ -34,8 +34,6 @@ export default function ApplyScrimModal({ open, handleClose, targetScrim, onSend
     const [summonerInputs, setSummonerInputs] = useState([]);
     const [partyMembers, setPartyMembers] = useState([]);
 
-    console.log(targetScrim);
-
     const people = targetScrim?.headCount === 3 ? '3:3' : '5:5';
     const partyLimit = people === '3:3' ? 2 : 4;
 
@@ -140,11 +138,12 @@ export default function ApplyScrimModal({ open, handleClose, targetScrim, onSend
 
             const res = await sendScrimRequest(requestBody);
             const formatted = transformScrimPageForFrontend(res.data);
-            console.log('스크림 신청 완료:', res);
+            alert('내전 신청 완료되었습니다.');
             onSendScrim?.(formatted);
             handleClose();
         } catch (e) {
-            console.error('스크림 신청 실패:', e);
+            alert('내전 신청 실패하였습니다.');
+
         }
     };
 

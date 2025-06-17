@@ -383,11 +383,57 @@ export const fetchSentRequests = async (requestorId) => {
 /**
  * Convenience Method
  */
+
 const transformRequestorToFrontend = (item) => {
     const {requestor, mapCode, matchingCategory, myPageUUID} = item;
+
+    // 내전인 경우 별도 처리
+    if (matchingCategory === 'SCRIM') {
+        const riot = requestor?.memberInfo?.riotAccount || {};
+        const memberInfo = requestor?.memberInfo || {};
+        const partyInfo = requestor?.partyInfo || [];
+
+        return {
+            id: myPageUUID,
+            name: riot.gameName,
+            tag: riot.tagLine,
+            avatarUrl: riot.profileUrl,
+            school: memberInfo.univName || '미인증',
+            department: memberInfo.department || '',
+            memo: item.requestorMemo,
+            queueType: mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
+            message: item.requestorMemo || '',
+            headCount: item.headCount || 5,
+            tier: memberInfo.rankInfo?.tier || 'Unranked',
+            leaguePoint: memberInfo.rankInfo?.lp || 0,
+            rank: memberInfo.rankInfo?.rank || '',
+            updatedAt: item.updatedAt,
+            type: '내전',
+            champions: memberInfo.most3Champ || [],
+            wins: memberInfo.rankInfo?.wins || 0,
+            losses: memberInfo.rankInfo?.losses || 0,
+            // 원본 API 데이터 저장
+            originalData: item,
+            party: partyInfo.map(p => ({
+                gameName: p.gameName,
+                tagLine: p.tagLine,
+                profileUrl: p.profileUrl || '/default.png',
+                myPosition: p.myPosition?.toLowerCase() || 'nothing',
+                tier: p.rankInfo?.tier || 'unranked',
+                rank: p.rankInfo?.rank || '',
+                lp: p.rankInfo?.lp || 0,
+                wins: p.rankInfo?.wins || 0,
+                losses: p.rankInfo?.losses || 0,
+                champions: p.most3Champ || []
+            }))
+        };
+    }
+
+    // 기존 듀오 로직에도 originalData 추가
     const riot = requestor?.memberInfo?.riotAccount || {};
     const memberInfo = requestor?.memberInfo || {};
     const userInfo = requestor?.userInfo || {};
+
     return {
         id: myPageUUID,
         name: riot.gameName,
@@ -395,7 +441,7 @@ const transformRequestorToFrontend = (item) => {
         avatarUrl: riot.profileUrl,
         school: memberInfo.univName || '미인증',
         department: memberInfo.department || '',
-        memo : item.requestorMemo,
+        memo: item.requestorMemo,
         queueType:
             mapCode === 'RANK'
                 ? '랭크'
@@ -415,14 +461,60 @@ const transformRequestorToFrontend = (item) => {
         lookingForPosition: '',
         lookingForStyle: '',
         updatedAt: item.updatedAt,
-        type: matchingCategory === 'DUO' ? '듀오' : '내전',
+        type: '듀오',
         champions: memberInfo.most3Champ || [],
         wins: memberInfo.rankInfo?.wins || 0,
         losses: memberInfo.rankInfo?.losses || 0,
+        originalData: item
     };
 };
+
 const transformAcceptorToFrontend = (item) => {
     const {acceptor, mapCode, matchingCategory, myPageUUID} = item;
+
+    // 내전인 경우 별도 처리
+    if (matchingCategory === 'SCRIM') {
+        const riot = acceptor?.memberInfo?.riotAccount || {};
+        const memberInfo = acceptor?.memberInfo || {};
+        const partyInfo = acceptor?.partyInfo || [];
+
+        return {
+            id: myPageUUID,
+            name: riot.gameName,
+            tag: riot.tagLine,
+            avatarUrl: riot.profileUrl,
+            school: memberInfo.univName || '미인증',
+            department: memberInfo.department || '',
+            memo: item.acceptorMemo,
+            queueType: mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
+            message: item.acceptorMemo || '',
+            headCount: item.headCount || 5,
+            tier: memberInfo.rankInfo?.tier || 'Unranked',
+            leaguePoint: memberInfo.rankInfo?.lp || 0,
+            rank: memberInfo.rankInfo?.rank || '',
+            updatedAt: item.updatedAt,
+            type: '내전',
+            champions: memberInfo.most3Champ || [],
+            wins: memberInfo.rankInfo?.wins || 0,
+            losses: memberInfo.rankInfo?.losses || 0,
+            // 원본 API 데이터 저장 (모달용)
+            originalData: item,
+            party: partyInfo.map(p => ({
+                gameName: p.gameName,
+                tagLine: p.tagLine,
+                profileUrl: p.profileUrl || '/default.png',
+                myPosition: p.myPosition?.toLowerCase() || 'nothing',
+                tier: p.rankInfo?.tier || 'unranked',
+                rank: p.rankInfo?.rank || '',
+                lp: p.rankInfo?.lp || 0,
+                wins: p.rankInfo?.wins || 0,
+                losses: p.rankInfo?.losses || 0,
+                champions: p.most3Champ || []
+            }))
+        };
+    }
+
+    // 기존 듀오 처리 로직에도 originalData 추가
     const riot = acceptor?.memberInfo?.riotAccount || {};
     const memberInfo = acceptor?.memberInfo || {};
     const userInfo = acceptor?.userInfo || {};
@@ -434,7 +526,7 @@ const transformAcceptorToFrontend = (item) => {
         avatarUrl: riot.profileUrl,
         school: memberInfo.univName || '미인증',
         department: memberInfo.department || '',
-        memo : item.acceptorMemo,
+        memo: item.acceptorMemo,
         queueType:
             mapCode === 'RANK'
                 ? '랭크'
@@ -454,10 +546,12 @@ const transformAcceptorToFrontend = (item) => {
         lookingForPosition: '',
         lookingForStyle: '',
         updatedAt: item.updatedAt,
-        type: matchingCategory === 'DUO' ? '듀오' : '내전',
+        type: '듀오',
         champions: memberInfo.most3Champ || [],
         wins: memberInfo.rankInfo?.wins || 0,
         losses: memberInfo.rankInfo?.losses || 0,
+        // 원본 데이터 추가
+        originalData: item
     };
 };
 
