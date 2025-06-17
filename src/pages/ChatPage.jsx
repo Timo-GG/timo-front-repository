@@ -9,9 +9,13 @@ import {
     TextField,
     Menu,
     MenuItem,
+    useMediaQuery,
+    useTheme,
+    Toolbar,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import useChatStore from '../storage/useChatStore';
 import useAuthStore from '../storage/useAuthStore';
 import SummonerInfo from '../components/SummonerInfo';
@@ -26,26 +30,24 @@ import {
     leaveChatRoom as apiLeaveChatRoom,
 } from '../apis/chatAPI';
 import {initializeChatSocket} from '../socket/chatSocket';
-import {formatRelativeTime} from '../utils/timeUtils'; // ✅ 추가
+import {formatRelativeTime} from '../utils/timeUtils';
 
 export default function ChatPage() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const navigate = useNavigate();
 
-    const {chatList, setChatList, addMessage, updateMessages} = useChatStore();
+    const { chatList, setChatList, addMessage, updateMessages, removeChatRoom } = useChatStore();
     const {userData} = useAuthStore();
 
-    // URL에서 roomId 파싱 (NaN이면 null)
     const roomIdFromUrl = useMemo(() => {
         const id = parseInt(searchParams.get('roomId'), 10);
         return isNaN(id) ? null : id;
     }, [searchParams]);
 
-    // URL state의 shouldJoin 플래그 (기본값 false)
     const shouldJoin = location.state?.shouldJoin === true;
-
-    // 채팅방 클릭 시 선택된 채팅방 ID (shouldJoin일 경우 URL roomId 사용)
     const [selectedChatId, setSelectedChatId] = useState(shouldJoin ? roomIdFromUrl : null);
     const [chatInput, setChatInput] = useState('');
     const [isComposing, setIsComposing] = useState(false);
@@ -59,13 +61,29 @@ export default function ChatPage() {
     const isInitialLoad = useRef(true);
     const isPaging = useRef(false);
 
-    // 채팅 리스트 배열 보장
+    // 모바일 뷰 상태
+    const [showChatRoom, setShowChatRoom] = useState(false);
+
     const safeChatList = useMemo(() => (Array.isArray(chatList) ? chatList : []), [chatList]);
-    // 선택된 채팅방 객체
     const selectedChat = useMemo(
         () => safeChatList.find(chat => chat.id === selectedChatId) || null,
         [safeChatList, selectedChatId]
     );
+
+    const handleChatRoomClick = (chatId) => {
+        console.log(`[ChatPage] 채팅방 클릭 -> setSelectedChatId(${chatId})`);
+        sessionStorage.setItem(`shouldJoin:${chatId}`, 'true');
+        setSelectedChatId(chatId);
+
+        if (isMobile) {
+            setShowChatRoom(true);
+        }
+    };
+
+    const handleBackToList = () => {
+        setShowChatRoom(false);
+        setSelectedChatId(null);
+    };
 
     const handleScroll = () => {
         const container = chatContainerRef.current;
@@ -78,7 +96,6 @@ export default function ChatPage() {
             isPaging.current = true;
             isFetching.current = true;
 
-            // ✅ API 함수 사용
             fetchChatMessages(selectedChatId, page)
                 .then((rawMessages) => {
                     const formatted = rawMessages
@@ -99,7 +116,6 @@ export default function ChatPage() {
                             const newScrollHeight = container.scrollHeight;
                             const scrollDelta = newScrollHeight - prevScrollHeight;
                             container.scrollTop = prevScrollTop + scrollDelta;
-                            console.log('[스크롤] 페이지 로딩 후 스크롤 위치 조정:', {prevScrollTop, scrollDelta});
                             isPaging.current = false;
                         }, 0);
                     }
@@ -111,119 +127,10 @@ export default function ChatPage() {
         }
     };
 
-    // --- 메시지 업데이트 시 자동 스크롤 ---
-    useEffect(() => {
-        const container = chatContainerRef.current;
-        if (!container || !selectedChat?.messages?.length) return;
-
-        if (isInitialLoad.current && !isPaging.current) {
-            isInitialLoad.current = false;
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-                console.log('[스크롤] ✅ 최초 진입 하단 이동');
-            }, 0);
-            return;
-        }
-
-        const threshold = 100;
-        const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
-        if (distanceToBottom < threshold) {
-            setTimeout(() => {
-                container.scrollTop = container.scrollHeight;
-                console.log('[스크롤] ✅ 새 메시지로 인한 하단 이동 (사용자 근처)');
-            }, 0);
-        }
-    }, [selectedChat?.messages]);
-
-    // --- 채팅방 목록 불러오기 ---
-    useEffect(() => {
-        console.log('[ChatPage] 채팅방 목록 로딩 시작');
-
-        // ✅ API 함수 사용
-        fetchChatRooms()
-            .then((response) => {
-                const rooms = response.data; // APIDataResponse의 data 필드
-                if (!Array.isArray(rooms)) return;
-
-                const formatted = rooms.map((room) => {
-                    const existing = chatList.find((c) => c.id === room.roomId);
-                    return {
-                        id: room.roomId,
-                        messages: existing?.messages || [],
-                        user: {
-                            // ✅ 백엔드 응답 구조에 맞게 수정
-                            name: `${room.opponentGameName}`,
-                            tag: room.opponentTagLine,
-                            avatarUrl: room.opponentProfileUrl,
-                            school: room.opponentUnivName,
-                        },
-                        lastMessage: room.lastMessage,
-                        lastTime: room.lastMessageTime,
-                        lastTimeFormatted: formatRelativeTime(room.lastMessageTime), // ✅ 포맷된 시간 추가
-                        unreadCount: room.unreadCount,
-                    };
-                });
-
-                console.log('[ChatPage] 채팅방 목록 로딩 성공:', formatted.map((r) => r.id));
-                setChatList(formatted);
-            })
-            .catch((err) => console.error('[ChatPage] 채팅방 목록 로딩 실패:', err));
-    }, [setChatList]);
-
-    useEffect(() => {
-        const updateRelativeTimes = () => {
-            setChatList(prevList =>
-                prevList.map(chat => ({
-                    ...chat,
-                    lastTimeFormatted: formatRelativeTime(chat.lastTime)
-                }))
-            );
-        };
-
-        // 1분마다 시간 업데이트
-        const interval = setInterval(updateRelativeTimes, 60000);
-        return () => clearInterval(interval);
-    }, [setChatList]);
-
-
-    // --- 채팅방 입장 ---
-    useEffect(() => {
-        const socket = getSocket();
-        if (!socket || !socket.connected || selectedChatId === null) {
-            console.log('[ChatPage] 소켓 입장 조건 미충족:', {socket, selectedChatId});
-            return;
-        }
-
-        const joinKey = `shouldJoin:${selectedChatId}`;
-        if (sessionStorage.getItem(joinKey) !== 'true') {
-            console.log(`[ChatPage] ${joinKey} 값이 없으므로 join_room 생략`);
-            return;
-        }
-
-        console.log(`[ChatPage] 채팅방 ${selectedChatId} 입장 요청`);
-        // ✅ Socket 이벤트로 방 입장
-        joinChatRoom(selectedChatId);
-
-        return () => {
-            console.log(`[ChatPage] 채팅방 ${selectedChatId} 퇴장 요청`);
-            leaveChatRoom({roomId: selectedChatId});
-        };
-    }, [selectedChatId]);
-
-
-    // --- URL state에 따른 입장 플래그 설정 ---
-    useEffect(() => {
-        if (roomIdFromUrl && shouldJoin) {
-            console.log(`[ChatPage] URL state에 따라 roomId ${roomIdFromUrl} join 플래그 설정`);
-            sessionStorage.setItem(`shouldJoin:${roomIdFromUrl}`, 'true');
-        }
-    }, [roomIdFromUrl, shouldJoin, location.state]);
-
-    // --- 메시지 전송 ---
     const handleSendMessage = () => {
         const text = chatInput.trim();
         if (!text || !selectedChatId) return;
-        console.log(`[ChatPage] 메시지 전송: "${text}" to room ${selectedChatId}`);
+
         const message = {
             type: 'sent',
             text,
@@ -234,91 +141,363 @@ export default function ChatPage() {
         setChatInput('');
     };
 
-    // --- 채팅방 나가기 ---
     const handleDelete = async (id) => {
         try {
-            // ✅ API 함수 사용
+            // API 호출 전에 현재 상태 백업
+            const currentChatList = [...chatList];
+            console.log('채팅방 나가기 시작:', id, '현재 채팅방 수:', currentChatList.length);
+
+            // API 호출
             await apiLeaveChatRoom(id);
-            console.log(`[ChatPage] 채팅방 ${id} 나가기 성공`);
-            setChatList(prev => prev.filter(chat => chat.id !== id));
+
+            // 성공 시에만 상태 업데이트
+            removeChatRoom(id);
+
             if (selectedChatId === id) {
                 setSelectedChatId(null);
+                if (isMobile) {
+                    setShowChatRoom(false);
+                }
             }
+
             sessionStorage.removeItem(`shouldJoin:${id}`);
             setAnchorEls(prev => ({...prev, [id]: null}));
             navigate('/mypage?tab=chat');
+
+            console.log('채팅방 나가기 완료');
         } catch (err) {
             console.error(`[ChatPage] 채팅방 ${id} 나가기 실패:`, err);
             alert('채팅방 나가기에 실패했습니다.');
+
+            // 실패 시 상태 복원 (필요한 경우)
+            // setChatList(currentChatList);
         }
     };
 
-    // --- 초기 메시지 로딩 (page 0) ---
+    // 기존 useEffect들 유지
     useEffect(() => {
-        if (!selectedChatId || !userData) return;
+        const container = chatContainerRef.current;
+        if (!container || !selectedChat?.messages?.length) return;
 
-        const current = chatList.find(c => c.id === selectedChatId);
-        if (current && current.messages.length > 0) {
-            console.log(`[ChatPage] 메시지 이미 있음 → 스킵`);
+        if (isInitialLoad.current && !isPaging.current) {
+            isInitialLoad.current = false;
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 0);
             return;
         }
 
-        console.log('[ChatPage] 초기 메시지 로딩 시작, userData:', userData);
+        const threshold = 100;
+        const distanceToBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distanceToBottom < threshold) {
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 0);
+        }
+    }, [selectedChat?.messages]);
 
-        // ✅ API 함수 사용
-        fetchChatMessages(selectedChatId, 0)
-            .then(rawMessages => {
-                console.log('[ChatPage] API 응답:', rawMessages);
-                const formatted = rawMessages.map(msg => ({
-                    type: msg.senderId === userData.memberId ? 'sent' : 'received',
-                    text: msg.content,
-                    timestamp: msg.timestamp,
-                })).reverse();
-
-                updateMessages(selectedChatId, formatted);
-                console.log('[ChatPage] 메시지 로딩 성공:', formatted);
-            })
-            .catch(err => {
-                console.error('[ChatPage] 메시지 로딩 실패:', err);
-            });
-    }, [selectedChatId, userData?.memberId]);
-
-    // --- 채팅방 변경 시 초기화 ---
     useEffect(() => {
-        isInitialLoad.current = true;
-    }, [selectedChatId]);
+        fetchChatRooms()
+            .then((response) => {
+                const rooms = response.data;
+                if (!Array.isArray(rooms)) return;
 
-    // --- 스크롤 이벤트 핸들러 등록 ---
+                const formatted = rooms.map((room) => {
+                    const existing = chatList.find((c) => c.id === room.roomId);
+                    return {
+                        id: room.roomId,
+                        messages: existing?.messages || [],
+                        user: {
+                            name: `${room.opponentGameName}`,
+                            tag: room.opponentTagLine,
+                            avatarUrl: room.opponentProfileUrl,
+                            school: room.opponentUnivName,
+                        },
+                        lastMessage: room.lastMessage,
+                        lastTime: room.lastMessageTime,
+                        lastTimeFormatted: formatRelativeTime(room.lastMessageTime),
+                        unreadCount: room.unreadCount,
+                    };
+                });
+
+                setChatList(formatted);
+            })
+            .catch((err) => console.error('[ChatPage] 채팅방 목록 로딩 실패:', err));
+    }, [setChatList]);
+
+    useEffect(() => {
+        if (!selectedChatId) return;
+
+        const shouldJoinFromStorage = sessionStorage.getItem(`shouldJoin:${selectedChatId}`) === 'true';
+        if (!shouldJoinFromStorage) return;
+
+        console.log(`[ChatPage] 채팅방 ${selectedChatId} 입장 시도`);
+
+        const socket = getSocket();
+        if (!socket) {
+            console.error('[ChatPage] 소켓이 초기화되지 않았습니다.');
+            return;
+        }
+
+        joinChatRoom(selectedChatId);
+        sessionStorage.removeItem(`shouldJoin:${selectedChatId}`);
+
+        setPage(1);
+        setHasMore(true);
+        isInitialLoad.current = true;
+
+        fetchChatMessages(selectedChatId, 1)
+            .then((rawMessages) => {
+                const formatted = rawMessages
+                    .map(msg => ({
+                        type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        text: msg.content,
+                        timestamp: msg.timestamp,
+                    }))
+                    .reverse();
+
+                updateMessages(selectedChatId, formatted, false);
+                setPage(2);
+            })
+            .catch((err) => console.error('[ChatPage] 초기 메시지 로딩 실패:', err));
+
+        return () => {
+            console.log(`[ChatPage] 채팅방 ${selectedChatId} 정리`);
+            leaveChatRoom(selectedChatId);
+        };
+    }, [selectedChatId, updateMessages, userData?.memberId]);
+
+    useEffect(() => {
+        initializeChatSocket();
+    }, []);
+
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
+
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
     }, [selectedChatId, page, hasMore]);
 
-    useEffect(() => {
-        initializeChatSocket();
-    }, []); // 한 번만 실행
+    // 모바일에서 채팅방 리스트만 보여주는 경우
+    if (isMobile && !showChatRoom) {
+        return (
+            <Box sx={{height: '100vh', backgroundColor: '#2c2c3a'}}>
+                {safeChatList.length > 0 ? (
+                    safeChatList.map(chat => (
+                        <Box
+                            key={chat.id}
+                            onClick={() => handleChatRoomClick(chat.id)}
+                            sx={{
+                                p: 2,
+                                cursor: 'pointer',
+                                backgroundColor: 'transparent',
+                                borderBottom: '1px solid #2c2c3a',
+                                '&:hover': {
+                                    backgroundColor: '#28282F',
+                                },
+                                position: 'relative'
+                            }}
+                        >
+                            <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                                <SummonerInfo {...chat.user} />
+                                <IconButton
+                                    size="small"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
+                                    }}
+                                >
+                                    <MoreVertIcon sx={{color: '#aaa'}}/>
+                                </IconButton>
+                            </Box>
+                            <Menu
+                                anchorEl={anchorEls[chat.id]}
+                                open={Boolean(anchorEls[chat.id])}
+                                onClose={() => setAnchorEls(prev => ({...prev, [chat.id]: null}))}
+                            >
+                                <MenuItem onClick={() => {
+                                    setTargetChatId(chat.id);
+                                    setOpenConfirm(true);
+                                }}>
+                                    나가기
+                                </MenuItem>
+                            </Menu>
+                            <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
+                                <Typography fontSize={14} color="#aaa" sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    maxWidth: '70%'
+                                }}>
+                                    {chat.lastMessage}
+                                </Typography>
+                                <Typography fontSize={14} color="#666">
+                                    {chat.lastTimeFormatted}
+                                </Typography>
+                            </Box>
+                        </Box>
+                    ))
+                ) : (
+                    <Box sx={{p: 2, textAlign: 'center'}}>
+                        <Typography variant="body1" color="#aaa">채팅방이 없습니다.</Typography>
+                    </Box>
+                )}
 
-    // --- 렌더링 ---
+                <ConfirmDialog
+                    open={openConfirm}
+                    onClose={() => setOpenConfirm(false)}
+                    onConfirm={() => {
+                        if (targetChatId) handleDelete(targetChatId);
+                        setOpenConfirm(false);
+                    }}
+                    title="정말 나가시겠습니까?"
+                    message="채팅방에서 나가면 대화 내용이 사라집니다."
+                    confirmText="나가기"
+                    cancelText="취소"
+                    danger
+                />
+            </Box>
+        );
+    }
+
+    // 모바일에서 개별 채팅방을 보여주는 경우
+    if (isMobile && showChatRoom && selectedChat) {
+        return (
+            <Box sx={{height: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#2c2c3a'}}>
+                {/* 모바일 헤더 */}
+                <Box sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    p: 2,
+                    borderBottom: '1px solid #3b3c4f',
+                    backgroundColor: '#2c2c3a'
+                }}>
+                    <IconButton
+                        onClick={handleBackToList}
+                        sx={{ mr: 2, color: '#fff' }}
+                    >
+                        <ArrowBackIcon />
+                    </IconButton>
+                    <SummonerInfo {...selectedChat.user} />
+                    <Button
+                        size="small"
+                        sx={{ ml: 'auto', color: '#fff' }}
+                        onClick={() => {
+                            setTargetChatId(selectedChat.id);
+                            setOpenConfirm(true);
+                        }}
+                    >
+                        나가기
+                    </Button>
+                </Box>
+
+                {/* 메시지 영역 */}
+                <Box
+                    ref={chatContainerRef}
+                    sx={{
+                        flex: 1,
+                        p: 2,
+                        overflowY: 'auto',
+                        backgroundColor: '#2c2c3a'
+                    }}
+                >
+                    <SystemMessage message="채팅방이 생성되었습니다."/>
+                    {selectedChat?.messages.length > 0 ? (
+                        selectedChat.messages.map((msg, idx) => (
+                            <ChatMessage key={idx} {...msg} />
+                        ))
+                    ) : (
+                        <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
+                    )}
+                </Box>
+
+                {/* 메시지 입력 영역 - 키보드 문제 해결 */}
+                <Box sx={{
+                    display: 'flex',
+                    p: 2,
+                    borderTop: '1px solid #3b3c4f',
+                    backgroundColor: '#2c2c3a',
+                    position: 'sticky',
+                    bottom: 0,
+                    zIndex: 1000
+                }}>
+                    <TextField
+                        fullWidth
+                        placeholder="메시지를 입력하세요..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (isComposing) return;
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
+                        }}
+                        onCompositionStart={() => setIsComposing(true)}
+                        onCompositionEnd={() => setIsComposing(false)}
+                        InputProps={{
+                            sx: {
+                                color: '#fff',
+                                backgroundColor: '#3b3c4f',
+                                borderRadius: 1,
+                                pl: 2,
+                                '& .MuiOutlinedInput-notchedOutline': {
+                                    border: 'none'
+                                }
+                            },
+                        }}
+                        sx={{
+                            '& .MuiInputBase-input': {
+                                fontSize: '16px', // iOS 줌 방지
+                            }
+                        }}
+                    />
+                    <IconButton
+                        sx={{color: '#42E6B5', ml: 1}}
+                        onClick={handleSendMessage}
+                    >
+                        <SendIcon/>
+                    </IconButton>
+                </Box>
+
+                <ConfirmDialog
+                    open={openConfirm}
+                    onClose={() => setOpenConfirm(false)}
+                    onConfirm={() => {
+                        if (targetChatId) handleDelete(targetChatId);
+                        setOpenConfirm(false);
+                    }}
+                    title="정말 나가시겠습니까?"
+                    message="채팅방에서 나가면 대화 내용이 사라집니다."
+                    confirmText="나가기"
+                    cancelText="취소"
+                    danger
+                />
+            </Box>
+        );
+    }
+
+    // 데스크톱 기존 구조 그대로 유지
     return (
-        <>
-            <Box sx={{display: 'flex', height: 700, overflow: 'hidden', backgroundColor: '#1e1f2d'}}>
-                {/* 왼쪽: 채팅방 목록 */}
-                <Box sx={{width: 500, backgroundColor: '#2c2c3a', borderRight: '2px solid #171717'}}>
+        <Box sx={{display: 'flex', height: 700, overflow: 'hidden', backgroundColor: '#2c2c3a'}}>
+            {/* 왼쪽 채팅방 리스트 */}
+            <Box sx={{width: 500, backgroundColor: '#2c2c3a', borderRight: '2px solid #171717'}}>
+                <Box sx={{height: 700, backgroundColor: '#2c2c3a'}}>
                     {safeChatList.length > 0 ? (
                         safeChatList.map(chat => (
                             <Box
                                 key={chat.id}
-                                onClick={() => {
-                                    console.log(`[ChatPage] 채팅방 클릭 -> setSelectedChatId(${chat.id})`);
-                                    sessionStorage.setItem(`shouldJoin:${chat.id}`, 'true');
-                                    setSelectedChatId(chat.id);
-                                }}
+                                onClick={() => handleChatRoomClick(chat.id)}
                                 sx={{
                                     p: 2,
                                     cursor: 'pointer',
                                     backgroundColor: selectedChatId === chat.id ? '#28282F' : 'transparent',
+                                    borderBottom: '1px solid #2c2c3a',
+                                    '&:hover': {
+                                        backgroundColor: '#28282F',
+                                    },
+                                    position: 'relative'
                                 }}
                             >
                                 <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
@@ -346,103 +525,102 @@ export default function ChatPage() {
                                     </MenuItem>
                                 </Menu>
                                 <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
-                                    <Typography fontSize={14} color="#aaa">{chat.lastMessage}</Typography>
-                                    <Typography fontSize={14} color="#666">{chat.lastTimeFormatted}</Typography>
-                                </Box>
-                                {/* ✅ 안 읽은 메시지 수 표시 */}
-                                {chat.unreadCount > 0 && (
-                                    <Box sx={{
-                                        position: 'absolute',
-                                        right: 8,
-                                        top: 8,
-                                        backgroundColor: '#ff4444',
-                                        borderRadius: '50%',
-                                        minWidth: 20,
-                                        height: 20,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center'
+                                    <Typography fontSize={14} color="#aaa" sx={{
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        maxWidth: '70%'
                                     }}>
-                                        <Typography fontSize={12} color="#fff">{chat.unreadCount}</Typography>
-                                    </Box>
-                                )}
+                                        {chat.lastMessage}
+                                    </Typography>
+                                    <Typography fontSize={14} color="#666">
+                                        {chat.lastTimeFormatted}
+                                    </Typography>
+                                </Box>
                             </Box>
                         ))
                     ) : (
-                        <Box sx={{p: 2}}>
+                        <Box sx={{p: 2, textAlign: 'center'}}>
                             <Typography variant="body1" color="#aaa">채팅방이 없습니다.</Typography>
                         </Box>
                     )}
                 </Box>
+            </Box>
 
-                {/* 오른쪽: 선택한 채팅방의 대화 UI */}
-                <Box sx={{flex: 1, display: 'flex', flexDirection: 'column', backgroundColor: '#292933'}}>
-                    {selectedChat ? (
-                        <>
-                            <Box sx={{p: 2, borderBottom: '1px solid #3b3c4f', display: 'flex', alignItems: 'center'}}>
-                                <SummonerInfo {...selectedChat.user} />
-                                <Button
-                                    size="small"
-                                    sx={{ml: 'auto', color: '#fff'}}
-                                    onClick={() => {
-                                        setTargetChatId(selectedChat.id);
-                                        setOpenConfirm(true);
-                                    }}
-                                >
-                                    나가기
-                                </Button>
-                            </Box>
-                            <Box ref={chatContainerRef} sx={{flex: 1, p: 2, overflowY: 'auto'}}>
-                                <SystemMessage message="채팅방이 생성되었습니다."/>
-                                {selectedChat.messages.length > 0 ? (
-                                    selectedChat.messages.map((msg, idx) => (
-                                        <ChatMessage key={idx} {...msg} />
-                                    ))
-                                ) : (
-                                    <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
-                                )}
-                            </Box>
-                            <Box sx={{
-                                display: 'flex',
-                                p: 2,
-                                borderTop: '1px solid #3b3c4f',
-                                backgroundColor: '#1e1f2d'
-                            }}>
-                                <TextField
-                                    fullWidth
-                                    placeholder="메시지를 입력하세요..."
-                                    value={chatInput}
-                                    onChange={(e) => setChatInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (isComposing) return;
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSendMessage();
-                                        }
-                                    }}
-                                    onCompositionStart={() => setIsComposing(true)}
-                                    onCompositionEnd={() => setIsComposing(false)}
-                                    InputProps={{
-                                        sx: {color: '#fff', backgroundColor: '#2c2c3a', borderRadius: 1, pl: 2},
-                                    }}
-                                />
-                                <IconButton sx={{color: '#42E6B5', ml: 1}} onClick={handleSendMessage}>
-                                    <SendIcon/>
-                                </IconButton>
-                            </Box>
-                        </>
-                    ) : (
-                        <Box sx={{
-                            flex: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#aaa'
-                        }}>
-                            <Typography>대화방을 선택해주세요.</Typography>
+            {/* 오른쪽 채팅방 */}
+            <Box sx={{flex: 1}}>
+                {selectedChat ? (
+                    <Box sx={{height: 700, display: 'flex', flexDirection: 'column', backgroundColor: '#2c2c3a'}}>
+                        {/* 채팅방 헤더 */}
+                        <Box sx={{p: 2, borderBottom: '1px solid #3b3c4f', display: 'flex', alignItems: 'center'}}>
+                            <SummonerInfo {...selectedChat.user} />
+                            <Button
+                                size="small"
+                                sx={{ml: 'auto', color: '#fff'}}
+                                onClick={() => {
+                                    setTargetChatId(selectedChat.id);
+                                    setOpenConfirm(true);
+                                }}
+                            >
+                                나가기
+                            </Button>
                         </Box>
-                    )}
-                </Box>
+
+                        {/* 메시지 영역 */}
+                        <Box ref={chatContainerRef} sx={{flex: 1, p: 2, overflowY: 'auto'}}>
+                            <SystemMessage message="채팅방이 생성되었습니다."/>
+                            {selectedChat?.messages.length > 0 ? (
+                                selectedChat.messages.map((msg, idx) => (
+                                    <ChatMessage key={idx} {...msg} />
+                                ))
+                            ) : (
+                                <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
+                            )}
+                        </Box>
+
+                        {/* 메시지 입력 영역 */}
+                        <Box sx={{
+                            display: 'flex',
+                            p: 2,
+                            borderTop: '1px solid #3b3c4f',
+                            backgroundColor: '#2c2c3a'
+                        }}>
+                            <TextField
+                                fullWidth
+                                placeholder="메시지를 입력하세요..."
+                                value={chatInput}
+                                onChange={(e) => setChatInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (isComposing) return;
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSendMessage();
+                                    }
+                                }}
+                                onCompositionStart={() => setIsComposing(true)}
+                                onCompositionEnd={() => setIsComposing(false)}
+                                InputProps={{
+                                    sx: {color: '#fff', backgroundColor: '#3b3c4f', borderRadius: 1, pl: 2},
+                                }}
+                            />
+                            <IconButton sx={{color: '#42E6B5', ml: 1}} onClick={handleSendMessage}>
+                                <SendIcon/>
+                            </IconButton>
+                        </Box>
+                    </Box>
+                ) : (
+                    <Box sx={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: '#aaa',
+                        height: '100%',
+                        backgroundColor: '#2c2c3a'
+                    }}>
+                        <Typography>대화방을 선택해주세요.</Typography>
+                    </Box>
+                )}
             </Box>
 
             {/* 채팅방 나가기 확인 다이얼로그 */}
@@ -459,6 +637,6 @@ export default function ChatPage() {
                 cancelText="취소"
                 danger
             />
-        </>
+        </Box>
     );
 }
