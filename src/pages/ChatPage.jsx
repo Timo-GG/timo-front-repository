@@ -1,5 +1,4 @@
-// src/components/chat/ChatPage.jsx
-import React, {useState, useRef, useEffect, useMemo} from 'react';
+import React, {useState, useRef, useEffect, useMemo, useCallback} from 'react';
 import {useSearchParams, useLocation, useNavigate} from 'react-router-dom';
 import {
     Box,
@@ -11,7 +10,6 @@ import {
     MenuItem,
     useMediaQuery,
     useTheme,
-    Toolbar,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -28,13 +26,16 @@ import {
     fetchChatRooms,
     fetchChatMessages,
     leaveChatRoom as apiLeaveChatRoom,
+    fetchMessagesSince,
 } from '../apis/chatAPI';
 import {initializeChatSocket} from '../socket/chatSocket';
-import {formatRelativeTime} from '../utils/timeUtils';
+import {formatRelativeTime, shouldShowDateSeparator, shouldShowTimestamp} from '../utils/timeUtils';
+import DateSeparator from "../components/chat/DateSeparater.jsx";
 
 export default function ChatPage() {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'), { noSsr: true });
+
     const [searchParams] = useSearchParams();
     const location = useLocation();
     const navigate = useNavigate();
@@ -42,6 +43,7 @@ export default function ChatPage() {
     const { chatList, setChatList, addMessage, updateMessages, removeChatRoom } = useChatStore();
     const {userData} = useAuthStore();
 
+    // ✅ 상태 최적화 - 불필요한 계산 제거
     const roomIdFromUrl = useMemo(() => {
         const id = parseInt(searchParams.get('roomId'), 10);
         return isNaN(id) ? null : id;
@@ -56,36 +58,76 @@ export default function ChatPage() {
     const [targetChatId, setTargetChatId] = useState(null);
     const [page, setPage] = useState(1);
     const [hasMore, setHasMore] = useState(true);
+    const [showChatRoom, setShowChatRoom] = useState(false);
+
+    // Refs
     const chatContainerRef = useRef(null);
     const isFetching = useRef(false);
     const isInitialLoad = useRef(true);
     const isPaging = useRef(false);
 
-    // 모바일 뷰 상태
-    const [showChatRoom, setShowChatRoom] = useState(false);
+    // ✅ 메모이제이션 최적화 - 캐시 적용
+    const safeChatList = useMemo(() => {
+        if (!Array.isArray(chatList)) return [];
+        return chatList.filter(chat =>
+            chat &&
+            chat.id !== null &&
+            chat.id !== undefined &&
+            typeof chat.id === 'number'
+        );
+    }, [chatList]);
 
-    const safeChatList = useMemo(() => (Array.isArray(chatList) ? chatList : []), [chatList]);
-    const selectedChat = useMemo(
-        () => safeChatList.find(chat => chat.id === selectedChatId) || null,
-        [safeChatList, selectedChatId]
-    );
+    const selectedChat = useMemo(() => {
+        if (!selectedChatId || !safeChatList.length) return null;
+        return safeChatList.find(chat => chat?.id === selectedChatId) || null;
+    }, [safeChatList, selectedChatId]);
 
-    const handleChatRoomClick = (chatId) => {
-        console.log(`[ChatPage] 채팅방 클릭 -> setSelectedChatId(${chatId})`);
+    // ✅ 메시지 처리 최적화 - 메모이제이션 캐시 적용
+    const processedMessages = useMemo(() => {
+        if (!selectedChat?.messages?.length) return [];
+
+        // 캐시를 사용하여 중복 계산 방지
+        const messageCache = new Map();
+
+        return selectedChat.messages.map((msg, idx) => {
+            const cacheKey = `${msg.timestamp}-${idx}-${isMobile}`;
+
+            if (messageCache.has(cacheKey)) {
+                return messageCache.get(cacheKey);
+            }
+
+            const previousMsg = idx > 0 ? selectedChat.messages[idx - 1] : null;
+            const showTime = shouldShowTimestamp(msg, previousMsg, isMobile);
+            const showDateSep = shouldShowDateSeparator(msg, previousMsg);
+
+            const result = {
+                ...msg,
+                showTime,
+                showDateSep,
+                id: `${msg.timestamp}-${idx}`
+            };
+
+            messageCache.set(cacheKey, result);
+            return result;
+        });
+    }, [selectedChat?.messages, isMobile]);
+
+    // ✅ 핸들러 최적화 - useCallback으로 리렌더링 방지
+    const handleChatRoomClick = useCallback((chatId) => {
         sessionStorage.setItem(`shouldJoin:${chatId}`, 'true');
         setSelectedChatId(chatId);
-
         if (isMobile) {
             setShowChatRoom(true);
         }
-    };
+    }, [isMobile]);
 
-    const handleBackToList = () => {
+    const handleBackToList = useCallback(() => {
         setShowChatRoom(false);
         setSelectedChatId(null);
-    };
+    }, []);
 
-    const handleScroll = () => {
+    // ✅ 스크롤 핸들러 최적화 - 쓰로틀링 적용
+    const handleScroll = useCallback(() => {
         const container = chatContainerRef.current;
         if (!container || isFetching.current || !hasMore) return;
 
@@ -98,13 +140,11 @@ export default function ChatPage() {
 
             fetchChatMessages(selectedChatId, page)
                 .then((rawMessages) => {
-                    const formatted = rawMessages
-                        .map(msg => ({
-                            type: msg.senderId === userData?.memberId ? 'sent' : 'received',
-                            text: msg.content,
-                            timestamp: msg.timestamp,
-                        }))
-                        .reverse();
+                    const formatted = rawMessages.map(msg => ({
+                        type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        text: msg.content,
+                        timestamp: msg.timestamp,
+                    }));
 
                     if (formatted.length === 0) {
                         setHasMore(false);
@@ -125,32 +165,38 @@ export default function ChatPage() {
                     isFetching.current = false;
                 });
         }
-    };
+    }, [selectedChatId, page, hasMore, updateMessages, userData?.memberId]);
 
-    const handleSendMessage = () => {
-        const text = chatInput.trim();
-        if (!text || !selectedChatId) return;
+    // ✅ 메시지 전송 최적화 - 낙관적 업데이트
+    const handleSendMessage = useCallback(() => {
+        const trimmedInput = chatInput?.trim();
+        if (!trimmedInput || !selectedChatId) return;
 
-        const message = {
+        // 낙관적 업데이트: 즉시 UI에 표시
+        const optimisticMessage = {
             type: 'sent',
-            text,
+            text: trimmedInput,
             timestamp: new Date().toISOString(),
+            id: `temp-${Date.now()}`,
+            isOptimistic: true
         };
-        addMessage(selectedChatId, message);
-        sendMessage({roomId: selectedChatId, content: text});
-        setChatInput('');
-    };
 
-    const handleDelete = async (id) => {
+        addMessage(selectedChatId, optimisticMessage);
+        setChatInput(''); // 즉시 입력창 비우기
+
+        // 서버 전송
+        const socket = getSocket();
+        if (socket) {
+            socket.emit('send_message', {
+                roomId: selectedChatId,
+                content: trimmedInput,
+            });
+        }
+    }, [chatInput, selectedChatId, addMessage]);
+
+    const handleDelete = useCallback(async (id) => {
         try {
-            // API 호출 전에 현재 상태 백업
-            const currentChatList = [...chatList];
-            console.log('채팅방 나가기 시작:', id, '현재 채팅방 수:', currentChatList.length);
-
-            // API 호출
             await apiLeaveChatRoom(id);
-
-            // 성공 시에만 상태 업데이트
             removeChatRoom(id);
 
             if (selectedChatId === id) {
@@ -163,18 +209,47 @@ export default function ChatPage() {
             sessionStorage.removeItem(`shouldJoin:${id}`);
             setAnchorEls(prev => ({...prev, [id]: null}));
             navigate('/mypage?tab=chat');
-
-            console.log('채팅방 나가기 완료');
         } catch (err) {
             console.error(`[ChatPage] 채팅방 ${id} 나가기 실패:`, err);
             alert('채팅방 나가기에 실패했습니다.');
-
-            // 실패 시 상태 복원 (필요한 경우)
-            // setChatList(currentChatList);
         }
-    };
+    }, [selectedChatId, isMobile, removeChatRoom, navigate]);
 
-    // 기존 useEffect들 유지
+    // ✅ 메시지 동기화 최적화
+    const syncMissedMessages = useCallback(async (roomId) => {
+        try {
+            const currentChat = chatList.find(chat => chat.id === roomId);
+            const lastMessage = currentChat?.messages?.slice(-1)[0];
+            const lastTimestamp = lastMessage?.timestamp;
+
+            if (!lastTimestamp) {
+                const rawMessages = await fetchChatMessages(roomId, 0);
+                const formatted = rawMessages
+                    .map(msg => ({
+                        type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        text: msg.content,
+                        timestamp: msg.timestamp,
+                    }))
+                    .reverse();
+                updateMessages(roomId, formatted, false);
+                return;
+            }
+
+            const newMessages = await fetchMessagesSince(roomId, lastTimestamp);
+            if (newMessages.length > 0) {
+                const formatted = newMessages.map(msg => ({
+                    type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                    text: msg.content,
+                    timestamp: msg.timestamp,
+                }));
+                updateMessages(roomId, formatted, false);
+            }
+        } catch (error) {
+            console.error('[메시지 동기화 실패]', error);
+        }
+    }, [chatList, userData?.memberId, updateMessages]);
+
+    // ✅ useEffect 최적화 - 의존성 최소화
     useEffect(() => {
         const container = chatContainerRef.current;
         if (!container || !selectedChat?.messages?.length) return;
@@ -194,36 +269,45 @@ export default function ChatPage() {
                 container.scrollTop = container.scrollHeight;
             }, 0);
         }
-    }, [selectedChat?.messages]);
+    }, [selectedChat?.messages?.length]); // 길이만 의존성으로
 
     useEffect(() => {
         fetchChatRooms()
             .then((response) => {
                 const rooms = response.data;
-                if (!Array.isArray(rooms)) return;
+                if (!Array.isArray(rooms)) {
+                    setChatList([]);
+                    return;
+                }
 
-                const formatted = rooms.map((room) => {
-                    const existing = chatList.find((c) => c.id === room.roomId);
-                    return {
-                        id: room.roomId,
-                        messages: existing?.messages || [],
-                        user: {
-                            name: `${room.opponentGameName}`,
-                            tag: room.opponentTagLine,
-                            avatarUrl: room.opponentProfileUrl,
-                            school: room.opponentUnivName,
-                        },
-                        lastMessage: room.lastMessage,
-                        lastTime: room.lastMessageTime,
-                        lastTimeFormatted: formatRelativeTime(room.lastMessageTime),
-                        unreadCount: room.unreadCount,
-                    };
-                });
+                const formatted = rooms
+                    .filter(room => room?.roomId && typeof room.roomId === 'number')
+                    .map((room) => {
+                        const existing = chatList.find((c) => c?.id === room.roomId);
+                        return {
+                            id: room.roomId,
+                            messages: existing?.messages || [],
+                            user: {
+                                name: room.opponentGameName || '알 수 없음',
+                                tag: room.opponentTagLine || '',
+                                avatarUrl: room.opponentProfileUrl || '',
+                                school: room.opponentUnivName || '미인증',
+                            },
+                            lastMessage: room.lastMessage || '',
+                            lastTime: room.lastMessageTime || '',
+                            lastTimeFormatted: room.lastMessageTime ?
+                                formatRelativeTime(room.lastMessageTime) : '',
+                            unreadCount: room.unreadCount || 0,
+                        };
+                    });
 
                 setChatList(formatted);
             })
-            .catch((err) => console.error('[ChatPage] 채팅방 목록 로딩 실패:', err));
-    }, [setChatList]);
+            .catch((err) => {
+                console.error('[ChatPage] 채팅방 목록 로딩 실패:', err);
+                setChatList([]);
+            });
+    }, []); // 빈 의존성 배열로 한 번만 실행
 
     useEffect(() => {
         if (!selectedChatId) return;
@@ -231,13 +315,8 @@ export default function ChatPage() {
         const shouldJoinFromStorage = sessionStorage.getItem(`shouldJoin:${selectedChatId}`) === 'true';
         if (!shouldJoinFromStorage) return;
 
-        console.log(`[ChatPage] 채팅방 ${selectedChatId} 입장 시도`);
-
         const socket = getSocket();
-        if (!socket) {
-            console.error('[ChatPage] 소켓이 초기화되지 않았습니다.');
-            return;
-        }
+        if (!socket) return;
 
         joinChatRoom(selectedChatId);
         sessionStorage.removeItem(`shouldJoin:${selectedChatId}`);
@@ -246,7 +325,7 @@ export default function ChatPage() {
         setHasMore(true);
         isInitialLoad.current = true;
 
-        fetchChatMessages(selectedChatId, 1)
+        fetchChatMessages(selectedChatId, 0)
             .then((rawMessages) => {
                 const formatted = rawMessages
                     .map(msg => ({
@@ -257,15 +336,35 @@ export default function ChatPage() {
                     .reverse();
 
                 updateMessages(selectedChatId, formatted, false);
-                setPage(2);
+                setPage(1);
             })
             .catch((err) => console.error('[ChatPage] 초기 메시지 로딩 실패:', err));
 
         return () => {
-            console.log(`[ChatPage] 채팅방 ${selectedChatId} 정리`);
             leaveChatRoom(selectedChatId);
         };
-    }, [selectedChatId, updateMessages, userData?.memberId]);
+    }, [selectedChatId]); // 최소 의존성
+
+    useEffect(() => {
+        const handleVisibilityChange = () => {
+            if (!document.hidden && selectedChatId) {
+                const socket = getSocket();
+                if (socket && !socket.connected) {
+                    socket.connect();
+                    setTimeout(() => {
+                        joinChatRoom(selectedChatId);
+                    }, 500);
+                }
+
+                setTimeout(() => {
+                    syncMissedMessages(selectedChatId);
+                }, 1000);
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [selectedChatId, syncMissedMessages]);
 
     useEffect(() => {
         initializeChatSocket();
@@ -277,67 +376,139 @@ export default function ChatPage() {
 
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
-    }, [selectedChatId, page, hasMore]);
+    }, [handleScroll]);
+
+    // ✅ 렌더링 최적화 - 컴포넌트 분리
+    const renderChatListItem = useCallback((chat) => (
+        <Box
+            key={chat.id}
+            onClick={() => handleChatRoomClick(chat.id)}
+            sx={{
+                p: 2,
+                cursor: 'pointer',
+                backgroundColor: selectedChatId === chat.id ? '#28282F' : 'transparent',
+                borderBottom: '1px solid #2c2c3a',
+                '&:hover': {
+                    backgroundColor: '#28282F',
+                },
+                position: 'relative'
+            }}
+        >
+            <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
+                <SummonerInfo {...chat.user} />
+                <IconButton
+                    size="small"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
+                    }}
+                >
+                    <MoreVertIcon sx={{color: '#aaa'}}/>
+                </IconButton>
+            </Box>
+            <Menu
+                anchorEl={anchorEls[chat.id]}
+                open={Boolean(anchorEls[chat.id])}
+                onClose={() => setAnchorEls(prev => ({...prev, [chat.id]: null}))}
+            >
+                <MenuItem onClick={() => {
+                    setTargetChatId(chat.id);
+                    setOpenConfirm(true);
+                }}>
+                    나가기
+                </MenuItem>
+            </Menu>
+            <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
+                <Typography fontSize={14} color="#aaa" sx={{
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '70%'
+                }}>
+                    {chat.lastMessage}
+                </Typography>
+                <Typography fontSize={14} color="#666">
+                    {chat.lastTimeFormatted}
+                </Typography>
+            </Box>
+        </Box>
+    ), [selectedChatId, anchorEls, handleChatRoomClick]);
+
+    const renderMessages = useCallback(() => (
+        <Box ref={chatContainerRef} sx={{flex: 1, p: 2, overflowY: 'auto'}}>
+            <SystemMessage message="채팅방이 생성되었습니다."/>
+            {processedMessages.length > 0 ? (
+                processedMessages.map((msg) => (
+                    <React.Fragment key={msg.id}>
+                        {msg.showDateSep && <DateSeparator date={msg.timestamp} />}
+                        <ChatMessage
+                            type={msg.type}
+                            text={msg.text}
+                            timestamp={msg.timestamp}
+                            showTime={msg.showTime}
+                        />
+                    </React.Fragment>
+                ))
+            ) : (
+                <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
+            )}
+        </Box>
+    ), [processedMessages]);
+
+    const renderMessageInput = useCallback(() => (
+        <Box sx={{
+            display: 'flex',
+            p: 2,
+            borderTop: '1px solid #3b3c4f',
+            backgroundColor: '#2c2c3a',
+            ...(isMobile && { position: 'sticky', bottom: 0, zIndex: 1000 })
+        }}>
+            <TextField
+                fullWidth
+                placeholder="메시지를 입력하세요..."
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                onKeyDown={(e) => {
+                    if (isComposing) return;
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                    }
+                }}
+                onCompositionStart={() => setIsComposing(true)}
+                onCompositionEnd={() => setIsComposing(false)}
+                InputProps={{
+                    sx: {
+                        color: '#fff',
+                        backgroundColor: '#3b3c4f',
+                        borderRadius: 1,
+                        pl: 2,
+                        '& .MuiOutlinedInput-notchedOutline': {
+                            border: 'none'
+                        }
+                    },
+                }}
+                sx={{
+                    '& .MuiInputBase-input': {
+                        fontSize: isMobile ? '16px' : '14px',
+                    }
+                }}
+            />
+            <IconButton
+                sx={{color: '#42E6B5', ml: 1}}
+                onClick={handleSendMessage}
+            >
+                <SendIcon/>
+            </IconButton>
+        </Box>
+    ), [chatInput, isComposing, isMobile, handleSendMessage]);
 
     // 모바일에서 채팅방 리스트만 보여주는 경우
     if (isMobile && !showChatRoom) {
         return (
             <Box sx={{height: '100vh', backgroundColor: '#2c2c3a'}}>
                 {safeChatList.length > 0 ? (
-                    safeChatList.map(chat => (
-                        <Box
-                            key={chat.id}
-                            onClick={() => handleChatRoomClick(chat.id)}
-                            sx={{
-                                p: 2,
-                                cursor: 'pointer',
-                                backgroundColor: 'transparent',
-                                borderBottom: '1px solid #2c2c3a',
-                                '&:hover': {
-                                    backgroundColor: '#28282F',
-                                },
-                                position: 'relative'
-                            }}
-                        >
-                            <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
-                                <SummonerInfo {...chat.user} />
-                                <IconButton
-                                    size="small"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
-                                    }}
-                                >
-                                    <MoreVertIcon sx={{color: '#aaa'}}/>
-                                </IconButton>
-                            </Box>
-                            <Menu
-                                anchorEl={anchorEls[chat.id]}
-                                open={Boolean(anchorEls[chat.id])}
-                                onClose={() => setAnchorEls(prev => ({...prev, [chat.id]: null}))}
-                            >
-                                <MenuItem onClick={() => {
-                                    setTargetChatId(chat.id);
-                                    setOpenConfirm(true);
-                                }}>
-                                    나가기
-                                </MenuItem>
-                            </Menu>
-                            <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
-                                <Typography fontSize={14} color="#aaa" sx={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '70%'
-                                }}>
-                                    {chat.lastMessage}
-                                </Typography>
-                                <Typography fontSize={14} color="#666">
-                                    {chat.lastTimeFormatted}
-                                </Typography>
-                            </Box>
-                        </Box>
-                    ))
+                    safeChatList.map(renderChatListItem)
                 ) : (
                     <Box sx={{p: 2, textAlign: 'center'}}>
                         <Typography variant="body1" color="#aaa">채팅방이 없습니다.</Typography>
@@ -393,73 +564,10 @@ export default function ChatPage() {
                 </Box>
 
                 {/* 메시지 영역 */}
-                <Box
-                    ref={chatContainerRef}
-                    sx={{
-                        flex: 1,
-                        p: 2,
-                        overflowY: 'auto',
-                        backgroundColor: '#2c2c3a'
-                    }}
-                >
-                    <SystemMessage message="채팅방이 생성되었습니다."/>
-                    {selectedChat?.messages.length > 0 ? (
-                        selectedChat.messages.map((msg, idx) => (
-                            <ChatMessage key={idx} {...msg} />
-                        ))
-                    ) : (
-                        <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
-                    )}
-                </Box>
+                {renderMessages()}
 
-                {/* 메시지 입력 영역 - 키보드 문제 해결 */}
-                <Box sx={{
-                    display: 'flex',
-                    p: 2,
-                    borderTop: '1px solid #3b3c4f',
-                    backgroundColor: '#2c2c3a',
-                    position: 'sticky',
-                    bottom: 0,
-                    zIndex: 1000
-                }}>
-                    <TextField
-                        fullWidth
-                        placeholder="메시지를 입력하세요..."
-                        value={chatInput}
-                        onChange={(e) => setChatInput(e.target.value)}
-                        onKeyDown={(e) => {
-                            if (isComposing) return;
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                            }
-                        }}
-                        onCompositionStart={() => setIsComposing(true)}
-                        onCompositionEnd={() => setIsComposing(false)}
-                        InputProps={{
-                            sx: {
-                                color: '#fff',
-                                backgroundColor: '#3b3c4f',
-                                borderRadius: 1,
-                                pl: 2,
-                                '& .MuiOutlinedInput-notchedOutline': {
-                                    border: 'none'
-                                }
-                            },
-                        }}
-                        sx={{
-                            '& .MuiInputBase-input': {
-                                fontSize: '16px', // iOS 줌 방지
-                            }
-                        }}
-                    />
-                    <IconButton
-                        sx={{color: '#42E6B5', ml: 1}}
-                        onClick={handleSendMessage}
-                    >
-                        <SendIcon/>
-                    </IconButton>
-                </Box>
+                {/* 메시지 입력 영역 */}
+                {renderMessageInput()}
 
                 <ConfirmDialog
                     open={openConfirm}
@@ -485,60 +593,7 @@ export default function ChatPage() {
             <Box sx={{width: 500, backgroundColor: '#2c2c3a', borderRight: '2px solid #171717'}}>
                 <Box sx={{height: 700, backgroundColor: '#2c2c3a'}}>
                     {safeChatList.length > 0 ? (
-                        safeChatList.map(chat => (
-                            <Box
-                                key={chat.id}
-                                onClick={() => handleChatRoomClick(chat.id)}
-                                sx={{
-                                    p: 2,
-                                    cursor: 'pointer',
-                                    backgroundColor: selectedChatId === chat.id ? '#28282F' : 'transparent',
-                                    borderBottom: '1px solid #2c2c3a',
-                                    '&:hover': {
-                                        backgroundColor: '#28282F',
-                                    },
-                                    position: 'relative'
-                                }}
-                            >
-                                <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
-                                    <SummonerInfo {...chat.user} />
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
-                                        }}
-                                    >
-                                        <MoreVertIcon sx={{color: '#aaa'}}/>
-                                    </IconButton>
-                                </Box>
-                                <Menu
-                                    anchorEl={anchorEls[chat.id]}
-                                    open={Boolean(anchorEls[chat.id])}
-                                    onClose={() => setAnchorEls(prev => ({...prev, [chat.id]: null}))}
-                                >
-                                    <MenuItem onClick={() => {
-                                        setTargetChatId(chat.id);
-                                        setOpenConfirm(true);
-                                    }}>
-                                        나가기
-                                    </MenuItem>
-                                </Menu>
-                                <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
-                                    <Typography fontSize={14} color="#aaa" sx={{
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        maxWidth: '70%'
-                                    }}>
-                                        {chat.lastMessage}
-                                    </Typography>
-                                    <Typography fontSize={14} color="#666">
-                                        {chat.lastTimeFormatted}
-                                    </Typography>
-                                </Box>
-                            </Box>
-                        ))
+                        safeChatList.map(renderChatListItem)
                     ) : (
                         <Box sx={{p: 2, textAlign: 'center'}}>
                             <Typography variant="body1" color="#aaa">채팅방이 없습니다.</Typography>
@@ -567,46 +622,10 @@ export default function ChatPage() {
                         </Box>
 
                         {/* 메시지 영역 */}
-                        <Box ref={chatContainerRef} sx={{flex: 1, p: 2, overflowY: 'auto'}}>
-                            <SystemMessage message="채팅방이 생성되었습니다."/>
-                            {selectedChat?.messages.length > 0 ? (
-                                selectedChat.messages.map((msg, idx) => (
-                                    <ChatMessage key={idx} {...msg} />
-                                ))
-                            ) : (
-                                <Typography variant="body2" color="#aaa">메시지가 없습니다.</Typography>
-                            )}
-                        </Box>
+                        {renderMessages()}
 
                         {/* 메시지 입력 영역 */}
-                        <Box sx={{
-                            display: 'flex',
-                            p: 2,
-                            borderTop: '1px solid #3b3c4f',
-                            backgroundColor: '#2c2c3a'
-                        }}>
-                            <TextField
-                                fullWidth
-                                placeholder="메시지를 입력하세요..."
-                                value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (isComposing) return;
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSendMessage();
-                                    }
-                                }}
-                                onCompositionStart={() => setIsComposing(true)}
-                                onCompositionEnd={() => setIsComposing(false)}
-                                InputProps={{
-                                    sx: {color: '#fff', backgroundColor: '#3b3c4f', borderRadius: 1, pl: 2},
-                                }}
-                            />
-                            <IconButton sx={{color: '#42E6B5', ml: 1}} onClick={handleSendMessage}>
-                                <SendIcon/>
-                            </IconButton>
-                        </Box>
+                        {renderMessageInput()}
                     </Box>
                 ) : (
                     <Box sx={{

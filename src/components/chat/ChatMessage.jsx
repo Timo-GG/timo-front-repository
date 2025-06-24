@@ -1,36 +1,85 @@
 /** 채팅 화면 내 메시지 표시 */
 
-import React from 'react';
+import React, { memo } from 'react';
 import { Box, Typography } from '@mui/material';
+import { formatChatTimestamp } from '../../utils/timeUtils';
 
-export default function ChatMessage({ type, text, timestamp, showTime }) {
-  return (
-    <Box display="flex" justifyContent={type === 'sent' ? 'flex-end' : 'flex-start'} mb={1}>
-      <Box>
+const ChatMessage = memo(function ChatMessage({ type, text, timestamp, showTime, isMobile }) {
+    const isSent = type === 'sent';
+
+    return (
         <Box
-          sx={{
-            backgroundColor: type === 'sent' ? '#fff' : '#3b3c4f',
-            color: type === 'sent' ? '#000' : '#fff',
-            px: 2,
-            py: 1,
-            borderRadius: 1,
-
-          }}
+            display="flex"
+            justifyContent={isSent ? 'flex-end' : 'flex-start'}
+            alignItems="flex-end"
+            mb={1}
+            gap={isMobile ? 0.3 : 0.5}
         >
-          {text}
+            {/* 내 메시지인 경우: 시간 + 메시지 순서 */}
+            {isSent && (
+                <>
+                    {showTime && (
+                        <Typography
+                            fontSize={isMobile ? 9 : 10}
+                            color="#777"
+                            sx={{
+                                mb: 0.5,
+                                minWidth: 'fit-content'
+                            }}
+                        >
+                            {formatChatTimestamp(timestamp)}
+                        </Typography>
+                    )}
+
+                    <Box
+                        sx={{
+                            backgroundColor: '#fff',
+                            color: '#000',
+                            px: isMobile ? 1.5 : 2,
+                            py: 1,
+                            borderRadius: 1,
+                            maxWidth: isMobile ? '80%' : '70%',
+                            wordBreak: 'break-word'
+                        }}
+                    >
+                        {text}
+                    </Box>
+                </>
+            )}
+
+            {/* 상대방 메시지인 경우: 메시지 + 시간 순서 */}
+            {!isSent && (
+                <>
+                    <Box
+                        sx={{
+                            backgroundColor: '#3b3c4f',
+                            color: '#fff',
+                            px: isMobile ? 1.5 : 2,
+                            py: 1,
+                            borderRadius: 1,
+                            maxWidth: isMobile ? '80%' : '70%',
+                            wordBreak: 'break-word'
+                        }}
+                    >
+                        {text}
+                    </Box>
+
+                    {showTime && (
+                        <Typography
+                            fontSize={isMobile ? 9 : 10}
+                            color="#777"
+                            sx={{
+                                mb: 0.5,
+                                minWidth: 'fit-content'
+                            }}
+                        >
+                            {formatChatTimestamp(timestamp)}
+                        </Typography>
+                    )}
+                </>
+            )}
         </Box>
-        {showTime && (
-          <Typography
-            fontSize={10}
-            color="#777"
-            mt={0.3}
-            textAlign={type === 'sent' ? 'right' : 'left'}
-            sx={{ ml: type === 'sent' ? 0 : 1, mr: type === 'sent' ? 1 : 0 }}
-          >
-            {timestamp?.slice(11, 16)}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
+    );
+});
+
+export default ChatMessage;

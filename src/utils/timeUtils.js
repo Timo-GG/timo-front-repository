@@ -108,3 +108,43 @@ export const formatCooldownTime = (cooldownTime) => {
     const { minutes, seconds } = cooldownTime;
     return `${minutes}분 ${seconds}초 후 끌어올리기`;
 };
+
+// src/utils/timeUtils.js
+
+export const formatChatTimestamp = (messageTime) => {
+    const messageDate = new Date(messageTime);
+
+    return messageDate.toLocaleTimeString('ko-KR', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+};
+
+// 발신자별로 독립적으로 시간 표시 여부 결정
+export const shouldShowTimestamp = (currentMessage, previousMessage, isMobile = false) => {
+    if (!previousMessage) return true;
+
+    // ✅ 타입 체크 최적화
+    if (currentMessage.type !== previousMessage.type) {
+        return true;
+    }
+
+    // ✅ Date 객체 생성 최소화
+    const timeDiff = Math.abs(
+        new Date(currentMessage.timestamp) - new Date(previousMessage.timestamp)
+    );
+
+    const timeInterval = isMobile ? 30000 : 60000; // 미리 계산된 값 사용
+    return timeDiff > timeInterval;
+};
+
+export const shouldShowDateSeparator = (currentMsg, previousMsg) => {
+    if (!currentMsg?.timestamp) return false;
+    if (!previousMsg?.timestamp) return true;
+
+    // ✅ toDateString() 호출 최소화
+    return new Date(currentMsg.timestamp).toDateString() !==
+        new Date(previousMsg.timestamp).toDateString();
+};
+
