@@ -1,5 +1,5 @@
 // src/pages/MyPage.jsx
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useMemo} from 'react';
 import {Box, Container, Tabs, Tab, useTheme, Typography} from '@mui/material';
 import {useSearchParams} from 'react-router-dom';
 import TabHeader from '../components/TabHeader';
@@ -43,7 +43,6 @@ export default function MyPage({defaultTab, initialRoomId}) {
         queryFn: () => fetchReceivedRequests(memberId),
         enabled: !!memberId,
     });
-
     const {data: sentUsers = [], refetch: refetchSent} = useQuery({
         queryKey: ['sentRequests', memberId],
         queryFn: () => fetchSentRequests(memberId),
@@ -53,7 +52,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
     const {data: evaluationData = {received: [], sent: []}, refetch: refetchEvaluation} = useQuery({
         queryKey: ['evaluationData', currentUserPuuid],
         queryFn: () => fetchEvaluationData(currentUserPuuid),
-        enabled: !!currentUserPuuid, // puuid가 있어야 호출
+        enabled: !!currentUserPuuid,
     });
 
     useEffect(() => {
@@ -73,6 +72,18 @@ export default function MyPage({defaultTab, initialRoomId}) {
     const handleEvaluate = (user) => {
         setReviewUser(user);
     };
+
+    const sortEvaluationsByLatest = (evaluations) => {
+        return [...evaluations].sort((a, b) => {
+            // createdAt 기준으로 내림차순 정렬 (최신순)
+            return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+    };
+
+    const sortedEvaluationData = useMemo(() => ({
+        received: sortEvaluationsByLatest(evaluationData.received || []),
+        sent: sortEvaluationsByLatest(evaluationData.sent || [])
+    }), [evaluationData]);
 
     const renderSubTabs = (subTab, setSubTab, labels) => (
         <Box
@@ -119,6 +130,8 @@ export default function MyPage({defaultTab, initialRoomId}) {
                 {mainTab === 0 && (
                     <>
                         {renderSubTabs(requestSubTab, setRequestSubTab, ['받은 요청', '보낸 요청'])}
+
+                        {/* 받은 요청 */}
                         <TabPanel value={requestSubTab} index={0}>
                             <Box sx={{overflowX: {xs: 'auto', sm: 'visible'}}}>
                                 <Box sx={{minWidth: {xs: '900px', sm: 'auto'}}}>
@@ -136,14 +149,11 @@ export default function MyPage({defaultTab, initialRoomId}) {
                                         </Box>
                                     ) : (
                                         receivedUsers.map(user => (
-                                            <Box key={user.id} onClick={() => handleRowClick(user)}
-                                                 sx={{cursor: 'pointer'}}>
-                                                <TableItem
-                                                    received={true}
-                                                    user={user}
-                                                    onEvaluate={handleEvaluate}
-                                                    onRequestUpdate={refetchReceived}
-                                                />
+                                            <Box key={user.id}>
+                                                <TableItem user={user} onRowClick={handleRowClick} received={true}
+                                                           onRequestUpdate={() => {
+                                                               refetchReceived();
+                                                           }}/>
                                             </Box>
                                         ))
                                     )}
@@ -151,7 +161,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
                             </Box>
                         </TabPanel>
 
-                        {/* 보낸 요청 탭 */}
+                        {/* 보낸 요청 */}
                         <TabPanel value={requestSubTab} index={1}>
                             <Box sx={{overflowX: {xs: 'auto', sm: 'visible'}}}>
                                 <Box sx={{minWidth: {xs: '900px', sm: 'auto'}}}>
@@ -169,14 +179,8 @@ export default function MyPage({defaultTab, initialRoomId}) {
                                         </Box>
                                     ) : (
                                         sentUsers.map(user => (
-                                            <Box key={user.id} onClick={() => handleRowClick(user)}
-                                                 sx={{cursor: 'pointer'}}>
-                                                <TableItem
-                                                    received={false}
-                                                    user={user}
-                                                    onEvaluate={handleEvaluate}
-                                                    onRequestUpdate={refetchSent}
-                                                />
+                                            <Box key={user.id}>
+                                                <TableItem user={user} onRowClick={handleRowClick} received={false}/>
                                             </Box>
                                         ))
                                     )}
@@ -189,7 +193,8 @@ export default function MyPage({defaultTab, initialRoomId}) {
                 {mainTab === 1 && (
                     <>
                         {renderSubTabs(evaluationSubTab, setEvaluationSubTab, ['받은 평가', '보낸 평가'])}
-                        {/* 평가 탭 - 받은 평가 */}
+
+                        {/* 받은 평가 */}
                         <TabPanel value={evaluationSubTab} index={0}>
                             <Box sx={{overflowX: {xs: 'auto', sm: 'visible'}}}>
                                 <Box sx={{minWidth: {xs: '900px', sm: 'auto'}}}>
@@ -207,7 +212,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
                                         </Box>
                                     ) : (
                                         evaluationData.received.map(evaluation => (
-                                            <Box key={evaluation.id}> {/* onClick 제거 */}
+                                            <Box key={evaluation.id}>
                                                 <EvaluationTableItem
                                                     user={evaluation.otherUser}
                                                     evaluation={evaluation}
@@ -221,7 +226,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
                             </Box>
                         </TabPanel>
 
-                        {/* 평가 탭 - 보낸 평가 */}
+                        {/* 보낸 평가 */}
                         <TabPanel value={evaluationSubTab} index={1}>
                             <Box sx={{overflowX: {xs: 'auto', sm: 'visible'}}}>
                                 <Box sx={{minWidth: {xs: '900px', sm: 'auto'}}}>
@@ -239,7 +244,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
                                         </Box>
                                     ) : (
                                         evaluationData.sent.map(evaluation => (
-                                            <Box key={evaluation.id}> {/* onClick 제거, cursor 스타일 제거 */}
+                                            <Box key={evaluation.id}>
                                                 <EvaluationTableItem
                                                     user={evaluation.otherUser}
                                                     evaluation={evaluation}
@@ -263,7 +268,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
             </Container>
 
             {selectedUser && (
-                <DuoDetailModal open handleClose={() => setSelectedUser(null)} partyData={selectedUser}                     isMyPageView={true}
+                <DuoDetailModal open handleClose={() => setSelectedUser(null)} partyData={selectedUser} isMyPageView={true}
                 />
             )}
             {selectedScrim && (

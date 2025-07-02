@@ -112,13 +112,15 @@ export default function RankingPage() {
         if (!searchTarget || !rankingData.list.length) return;
 
         const exists = rankingData.list.some(item => {
-            const full = `${item.name}#${item.tag}`.toLowerCase().replace(/\s+/g, '');
+            // 띄어쓰기를 제거하지 않고 비교
+            const full = `${item.name}#${item.tag}`;
             return full === searchTarget;
         });
 
         if (!exists) {
             setSearchTarget(null);
         } else {
+            // ref 키도 띄어쓰기를 제거하지 않도록 수정
             const targetElement = rowRefs.current[searchTarget];
             if (targetElement) {
                 setTimeout(() => {
@@ -138,11 +140,13 @@ export default function RankingPage() {
         const [name, tag] = searchText.split('#').map(s => s.trim());
 
         try {
+            // 띄어쓰기를 제거하지 않고 그대로 전송
             const rank = await fetchRankingPosition(name, tag);
             const page = Math.ceil(rank / itemsPerPage);
 
             setCurrentPage(page);
-            setSearchTarget(`${name.toLowerCase()}#${tag.toLowerCase().replace(/\s+/g, '')}`);
+            // 검색 타겟도 띄어쓰기를 제거하지 않고 설정
+            setSearchTarget(`${name}#${tag}`);
         } catch (err) {
             alert('해당 소환사를 찾을 수 없습니다.');
         }
@@ -299,15 +303,15 @@ export default function RankingPage() {
 
                         {/* 테이블 바디 */}
                         {rankingData.list.map(row => {
-                            const full = `${row.name}#${row.tag}`.toLowerCase().replace(/\s+/g, '');
+                            // 띄어쓰기를 제거하지 않고 키 생성
+                            const full = `${row.name}#${row.tag}`;
                             const isHighlighted = full === searchTarget;
-
                             return (
                                 <Collapse key={full} in={true}>
                                     <Box
                                         ref={(el) => {
                                             if (el) {
-                                                rowRefs.current[full] = el;
+                                                rowRefs.current[full] = el; // 띄어쓰기 포함된 키 사용
                                             }
                                         }}
                                         onClick={() => handleRowClick(row)}
@@ -334,7 +338,7 @@ export default function RankingPage() {
                                     >
                                         <Box width="5%" textAlign="center">{row.ranking}</Box>
                                         <Box width="15%" display="flex">
-                                            <SummonerInfo name={row.name} tag={row.tag} avatarUrl={row.avatarUrl}/>
+                                            <SummonerInfo name={row.name} tag={row.tag} avatarUrl={row.avatarUrl} verificationType={row.verificationType}/>
                                         </Box>
                                         <Box width="10%" textAlign="center">
                                             <PositionIcon position={row.position}/>

@@ -26,7 +26,7 @@ import PositionFilterBar from '/src/components/duo/PositionFilterBar';
 import useAuthStore from '../storage/useAuthStore';
 import ConfirmRequiredDialog from '../components/ConfirmRequiredDialog';
 import {useQuery} from '@tanstack/react-query';
-import {fetchAllDuoBoards, isExistMyBoard, refreshDuoBoards, deleteMyDuoBoard, fetchDuoBoard} from '../apis/redisAPI';
+import {fetchAllDuoBoards, isExistMyBoard, refreshDuoBoards, deleteMyDuoBoard, fetchDuoBoard, checkAlreadyApplied} from '../apis/redisAPI';
 import {getMyInfo} from '../apis/authAPI';
 import {useQueryClient} from '@tanstack/react-query';
 import {
@@ -300,11 +300,23 @@ export default function DuoPage() {
         setSelectedUser(user);
     };
 
-    const handleApplyDuo = (user, boardUUID) => {
+    const handleApplyDuo = async (user, boardUUID) => {
         if (!isUserLoggedIn) {
             setLoginModalOpen(true);
             return;
         }
+
+        try {
+            const alreadyApplied = await checkAlreadyApplied(boardUUID);
+            if (alreadyApplied) {
+                alert('이미 신청한 게시글입니다.');
+                return;
+            }
+        } catch (error) {
+            console.error('중복 신청 체크 실패:', error);
+            // 에러가 발생해도 신청은 진행 (서버에서 한번 더 체크하므로)
+        }
+
         setSelectedUser(user);
         setCurrentBoardUUID(boardUUID);
         setOpenSendModal(true);
@@ -819,12 +831,22 @@ function FilterBar({
 }
 
 function DuoHeader() {
-    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 0.5];
-    const headers = ['소환사', '큐 타입', '주 포지션', '티어', '찾는 포지션', '한 줄 소개', '등록 일시', '만료 일시', ''];
+    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 1.1, 0.5];
+    const headers = ['소환사', '큐 타입', '주 포지션', '티어', '찾는 포지션', '한 줄 소개', '등록 일시', '만료 일시', '듀오 신청', ''];
     return (
         <Box sx={headerRowStyle}>
             {headers.map((text, i) => (
-                <Box key={i} sx={{flex: columns[i], textAlign: 'center'}}>
+                <Box
+                    key={i}
+                    sx={{
+                        flex: `${columns[i]} 0 0`, // ✅ flex-grow, flex-shrink, flex-basis 명시
+                        textAlign: 'center',
+                        minWidth: 0, // ✅ 텍스트 오버플로우 방지
+                        // ✅ 각 컬럼별 최소 너비 설정
+                        ...(i === 0 && { minWidth: '180px' }), // 소환사
+                        ...(i === 5 && { minWidth: '200px' }), // 한 줄 소개
+                    }}
+                >
                     {text}
                 </Box>
             ))}
@@ -833,7 +855,7 @@ function DuoHeader() {
 }
 
 function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit}) {
-    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 0.5];
+    const columns = [2, 1, 1, 1, 1, 3, 1, 1, 1.1, 0.5];
     const isMine = user.memberId === currentUser.memberId;
 
     const [anchorEl, setAnchorEl] = useState(null);
@@ -889,8 +911,15 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 }
             }}
         >
-            <Box sx={{flex: columns[0]}}>
-                <SummonerInfo name={user.name} avatarUrl={user.avatarUrl} tag={user.tag} school={user.school}/>
+            <Box sx={{
+                flex: `${columns[0]} 0 0`,
+                minWidth: '180px', // 소환사 정보 최소 너비
+                overflow: 'hidden',
+                textOverflow: 'ellipsis', // ✅ 텍스트가 넘치면 ... 표시
+                whiteSpace: 'nowrap',     // ✅ 텍스트 줄바꿈 방지
+            }}>
+
+                <SummonerInfo name={user.name} avatarUrl={user.avatarUrl} tag={user.tag} school={user.school} verificationType={user.verificationType}/>
             </Box>
             <Box sx={{flex: columns[1], textAlign: 'center'}}>{user.queueType}</Box>
             <Box sx={{flex: columns[2], textAlign: 'center'}}>
@@ -925,7 +954,7 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                     whiteSpace: 'normal',
                     maxHeight: '3.6em'
                 }}>
-                    {user.message}
+                    {user.memo}
                 </Box>
             </Box>
             <Box sx={{
@@ -933,6 +962,7 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 textAlign: 'center',
                 fontSize: {xs: '0.7rem', sm: '0.75rem'}
             }}>{relativeTime}</Box>
+
             <Box sx={{
                 flex: columns[7],
                 textAlign: 'center',
@@ -941,7 +971,19 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
             }}>
                 {expiryTime}
             </Box>
-            <Box sx={{flex: columns[8], textAlign: 'right'}}>
+            <Box sx={{flex: columns[8], textAlign: 'center'}}>
+                {!isMine ? ( // ✅ 내 게시글이 아닐 때만 신청 버튼 표시
+                    <Button variant="contained" sx={applyBtnStyle} onClick={(e) => {
+                        e.stopPropagation();
+                        onApplyDuo();
+                    }}>
+                        신청
+                    </Button>
+                ) : (
+                    <Box sx={{ color: '#666', fontSize: '0.85rem' }}>내 게시글</Box>
+                )}
+            </Box>
+            <Box sx={{flex: columns[9], textAlign: 'right'}}>
                 {isMine && (
                     <>
                         <IconButton onClick={(e) => {
@@ -1012,6 +1054,7 @@ const headerRowStyle = {
     backgroundColor: '#28282F',
     borderTopLeftRadius: 10,
     borderTopRightRadius: 10,
+    minWidth: 'fit-content',
 };
 
 const itemRowStyle = {
@@ -1023,4 +1066,15 @@ const itemRowStyle = {
     borderBottom: '2px solid #12121a',
     cursor: 'pointer',
     '&:hover': {backgroundColor: '#2E2E38'},
+    minWidth: 'fit-content',
+};
+
+const applyBtnStyle = {
+    backgroundColor: '#424254',
+    color: '#fff',
+    borderRadius: 0.8,
+    fontWeight: 'bold',
+    px: 2,
+    py: 1,
+    border: '1px solid #71717D',
 };

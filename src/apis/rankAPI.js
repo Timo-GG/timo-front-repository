@@ -13,6 +13,7 @@ export const fetchRankingList = async (page = 1, size = 10) => {
             name: item.gameName,
             avatarUrl: item.profileIconUrl || '/assets/default.png',
             tag: item.tagLine,
+            verificationType: item.verificationType,
             position: item.position?.toLowerCase() || 'unknown',
             tier: item.tier.toLowerCase() || 'unknown',
             score: item.score,
@@ -47,6 +48,7 @@ export const fetchRankingByUniversity = async (university, page = 1, size = 10) 
             name: item.gameName,
             avatarUrl: item.profileIconUrl || '/assets/default.png',
             tag: item.tagLine,
+            verificationType: item.verificationType,
             position: item.position?.toLowerCase() || 'unknown',
             tier: item.tier.toLowerCase() || 'unknown',
             score: item.score,
@@ -92,3 +94,4 @@ export const fetchRankingPosition = async (name, tag) => {
 
     return response.data.data; // 실제 순위 (int)
 };
+

@@ -115,69 +115,23 @@ export default function Header() {
         {label: '랭킹', path: '/ranking'},
         {label: '내전', path: '/scrim'},
         {label: '듀오 찾기', path: '/duo'},
-        // {label: '마이페이지', path: '/mypage'},
+        {label: '마이페이지', path: '/mypage', requireAuth: true},
     ];
 
     const [isVisible, setIsVisible] = useState(true);
 
-    if (!isVisible) return null;
-    const NoticeBanner = () => {
-        const [isVisible, setIsVisible] = useState(true);
+    const handleMenuClick = (item) => {
+        // 인증이 필요한 페이지인데 로그인되지 않은 경우
+        if (item.requireAuth && !accessToken) {
+            setIsLoginModalOpen(true);
+            return;
+        }
 
-        if (!isVisible) return null;
-
-        return (
-            <Box sx={{
-                backgroundColor: '#ff6b35',
-                color: '#fff',
-                py: 1,
-                px: 2,
-                textAlign: 'center',
-                position: 'relative',
-                borderBottom: '1px solid #e55a2b'
-            }}>
-                <Typography
-                    variant="body2"
-                    sx={{
-                        fontWeight: 'bold',
-                        fontSize: { xs: '0.8rem', sm: '0.9rem' }
-                    }}
-                >
-                    추가기능 도입 예정 (시험기간 후)
-                    <Link
-                        href="https://url.kr/cwo6rj"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        sx={{
-                            color: '#fff',
-                            marginLeft: '16px',
-                            textDecoration: 'underline',
-                            '&:hover': {
-                                color: '#ffe0d6'
-                            }
-                        }}
-                    >
-                        건의사항 링크
-                    </Link>
-                </Typography>
-                <IconButton
-                    size="small"
-                    onClick={() => setIsVisible(false)}
-                    sx={{
-                        position: 'absolute',
-                        right: 8,
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        color: '#fff',
-                        fontSize: '0.8rem',
-                        p: 0.5
-                    }}
-                >
-                    ✕
-                </IconButton>
-            </Box>
-        );
+        // 로그인된 경우 또는 인증이 필요없는 페이지인 경우
+        navigate(item.path);
     };
+
+    if (!isVisible) return null;
 
     useEffect(() => {
         if (!accessToken) return;
@@ -359,7 +313,7 @@ export default function Header() {
                                     return (
                                         <Typography
                                             key={item.path}
-                                            onClick={() => navigate(item.path)}
+                                            onClick={() => handleMenuClick(item)} // 🔥 새로운 핸들러 사용
                                             variant="body1"
                                             sx={{
                                                 cursor: 'pointer',
@@ -516,10 +470,10 @@ export default function Header() {
 
                 </Box>
             </AppBar>
-            <NoticeBanner />
             <LoginModal
                 open={isLoginModalOpen}
                 onClose={() => setIsLoginModalOpen(false)}
+                redirectTo={location.pathname} // 🔥 현재 경로를 redirectTo로 전달
             />
         </>
     );

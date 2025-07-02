@@ -9,7 +9,37 @@ export default function EvaluationTableItem({ user, evaluation, status, onEvalua
 
     const handleEvaluateClick = (event) => {
         event.stopPropagation();
-        onEvaluate({ ...user, evaluationId: evaluation.id, mode: evaluation.mode });
+        onEvaluate({
+            ...user,
+            evaluationId: evaluation.id,
+            mode: evaluation.mode,
+            reviewData: evaluation.reviewData,
+            reviewStatus: evaluation.reviewStatus
+        });
+    };
+
+    // ✅ 받은 평가 클릭 핸들러 추가
+    const handleReceivedEvaluationClick = (event) => {
+        event.stopPropagation();
+        onEvaluate({
+            ...user,
+            evaluationId: evaluation.id,
+            mode: 'received',
+            reviewData: evaluation.reviewData,
+            reviewStatus: 'completed' // 받은 평가는 항상 완료 상태
+        });
+    };
+
+    // ✅ 완료된 보낸 평가 클릭 핸들러 추가
+    const handleCompletedSentEvaluationClick = (event) => {
+        event.stopPropagation();
+        onEvaluate({
+            ...user,
+            evaluationId: evaluation.id,
+            mode: 'sent',
+            reviewData: evaluation.reviewData,
+            reviewStatus: 'completed'
+        });
     };
 
     return (
@@ -25,7 +55,17 @@ export default function EvaluationTableItem({ user, evaluation, status, onEvalua
                 '&:hover': {
                     backgroundColor: '#2E2E38',
                 },
+                // ✅ 받은 평가일 때 클릭 가능하도록 커서 설정
+                cursor: (status === '받은 평가' || evaluation.reviewStatus === 'completed') ? 'pointer' : 'default',
             }}
+            // ✅ 받은 평가일 때 전체 행 클릭 가능
+            onClick={
+                status === '받은 평가'
+                    ? handleReceivedEvaluationClick
+                    : evaluation.reviewStatus === 'completed'
+                        ? handleCompletedSentEvaluationClick
+                        : undefined
+            }
         >
             {/* 소환사 */}
             <Box sx={{ flex: columns[0], display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -33,6 +73,7 @@ export default function EvaluationTableItem({ user, evaluation, status, onEvalua
                     name={user.name}
                     tag={user.tag}
                     avatarUrl={user.avatarUrl}
+                    verificationType={user.verificationType}
                 />
             </Box>
             {/* 포지션 */}
@@ -73,7 +114,7 @@ export default function EvaluationTableItem({ user, evaluation, status, onEvalua
             <Box sx={{ flex: columns[7], display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                 {status === '받은 평가' ? (
                     <Rating
-                        value={evaluation.score || 0}
+                        value={evaluation.reviewData?.evaluation_score || 0} // ✅ 리뷰 데이터에서 점수 가져오기
                         readOnly
                         size="small"
                         sx={{

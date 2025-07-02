@@ -31,6 +31,16 @@ export const refreshScrimBoard = async () => {
 };
 
 /**
+ * 중복 신청 확인
+ */
+export const checkAlreadyApplied = async (boardUUID) => {
+    const response = await axiosInstance.get(`/matching/mypage/exists/${boardUUID}`, {
+        withAuth: true,
+    });
+    return response.data.data;
+};
+
+/**
  * [Update] 게시글 수정 로직
  */
 export const updateDuoBoard = async (dto) => {
@@ -85,6 +95,7 @@ export const fetchAllDuoBoards = async (page = 0, size = 10) => {
                 name: riot.gameName,
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
+                verificationType: user.verificationType,
                 school: user.univName || '미인증',
                 department: user.department || '',
                 queueType:
@@ -93,7 +104,7 @@ export const fetchAllDuoBoards = async (page = 0, size = 10) => {
                         : item.mapCode === 'NORMAL'
                             ? '일반'
                             : '칼바람',
-                message: item.memo,
+                memo: item.memo,
                 position: userInfo.myPosition?.toLowerCase() || '',
                 playStyle: userInfo.myStyle?.toLowerCase() || '',
                 status: userInfo.myStatus?.toLowerCase() || '',
@@ -192,6 +203,7 @@ export const fetchScrimBoard = async (boardUUID) => {
         name: riot.gameName,
         tag: riot.tagLine,
         avatarUrl: riot.profileUrl,
+        verificationType: member.verificationType,
         school: member.univName || '미인증',
         department: member.department || '',
         queueType: item.mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
@@ -239,6 +251,7 @@ export const fetchAllScrimBoards = async (page = 0, size = 10) => {
                 name: riot.gameName,
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
+                verificationType: member.verificationType,
                 school: member.univName || '미인증',
                 department: member.department || '',
                 queueType:
@@ -293,6 +306,7 @@ export const fetchUnivScrimBoards = async (page = 0, size = 10, univName) => {
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
                 school: member.univName || '미인증',
+                verificationType: member.verificationType,
                 department: member.department || '',
                 queueType:
                     item.mapCode === 'RIFT'
@@ -370,32 +384,89 @@ export const fetchReceivedRequests = async (acceptorId) => {
         {withAuth: true}
     );
     const data = res.data.data;
-    return data.map(item => transformRequestorToFrontend(item));
+    const transformedData = data.map(item => transformRequestorToFrontend(item));
+
+    // ✅ 최신순으로 정렬 추가
+    return transformedData.sort((a, b) => {
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
 };
 
 export const fetchSentRequests = async (requestorId) => {
     const res = await axiosInstance.get(`/matching/mypage/requestor/${requestorId}`,
         {withAuth: true});
     const data = res.data.data;
-    return data.map(item => transformAcceptorToFrontend(item));
+    const transformedData = data.map(item => transformAcceptorToFrontend(item));
+
+    // ✅ 최신순으로 정렬 추가
+    return transformedData.sort((a, b) => {
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
 };
 
 /**
  * Convenience Method
  */
+
 const transformRequestorToFrontend = (item) => {
     const {requestor, mapCode, matchingCategory, myPageUUID} = item;
+
+    // 내전인 경우 별도 처리
+    if (matchingCategory === 'SCRIM') {
+        const riot = requestor?.memberInfo?.riotAccount || {};
+        const memberInfo = requestor?.memberInfo || {};
+        const partyInfo = requestor?.partyInfo || [];
+
+        return {
+            id: myPageUUID,
+            name: riot.gameName,
+            tag: riot.tagLine,
+            avatarUrl: riot.profileUrl,
+            school: memberInfo.univName || '미인증',
+            department: memberInfo.department || '',
+            memo: item.requestorMemo,
+            queueType: mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
+            message: item.requestorMemo || '',
+            headCount: item.headCount || 5,
+            tier: memberInfo.rankInfo?.tier || 'Unranked',
+            leaguePoint: memberInfo.rankInfo?.lp || 0,
+            rank: memberInfo.rankInfo?.rank || '',
+            updatedAt: item.updatedAt,
+            type: '내전',
+            champions: memberInfo.most3Champ || [],
+            wins: memberInfo.rankInfo?.wins || 0,
+            losses: memberInfo.rankInfo?.losses || 0,
+            // 원본 API 데이터 저장
+            originalData: item,
+            party: partyInfo.map(p => ({
+                gameName: p.gameName,
+                tagLine: p.tagLine,
+                profileUrl: p.profileUrl || '/default.png',
+                myPosition: p.myPosition?.toLowerCase() || 'nothing',
+                tier: p.rankInfo?.tier || 'unranked',
+                rank: p.rankInfo?.rank || '',
+                lp: p.rankInfo?.lp || 0,
+                wins: p.rankInfo?.wins || 0,
+                losses: p.rankInfo?.losses || 0,
+                champions: p.most3Champ || []
+            }))
+        };
+    }
+
+    // 기존 듀오 로직에도 originalData 추가
     const riot = requestor?.memberInfo?.riotAccount || {};
     const memberInfo = requestor?.memberInfo || {};
     const userInfo = requestor?.userInfo || {};
+
     return {
         id: myPageUUID,
         name: riot.gameName,
         tag: riot.tagLine,
         avatarUrl: riot.profileUrl,
+        verificationType: riot.verificationType,
         school: memberInfo.univName || '미인증',
         department: memberInfo.department || '',
-        memo : item.requestorMemo,
+        memo: item.requestorMemo,
         queueType:
             mapCode === 'RANK'
                 ? '랭크'
@@ -415,14 +486,60 @@ const transformRequestorToFrontend = (item) => {
         lookingForPosition: '',
         lookingForStyle: '',
         updatedAt: item.updatedAt,
-        type: matchingCategory === 'DUO' ? '듀오' : '내전',
+        type: '듀오',
         champions: memberInfo.most3Champ || [],
         wins: memberInfo.rankInfo?.wins || 0,
         losses: memberInfo.rankInfo?.losses || 0,
+        originalData: item
     };
 };
+
 const transformAcceptorToFrontend = (item) => {
     const {acceptor, mapCode, matchingCategory, myPageUUID} = item;
+
+    // 내전인 경우 별도 처리
+    if (matchingCategory === 'SCRIM') {
+        const riot = acceptor?.memberInfo?.riotAccount || {};
+        const memberInfo = acceptor?.memberInfo || {};
+        const partyInfo = acceptor?.partyInfo || [];
+
+        return {
+            id: myPageUUID,
+            name: riot.gameName,
+            tag: riot.tagLine,
+            avatarUrl: riot.profileUrl,
+            school: memberInfo.univName || '미인증',
+            department: memberInfo.department || '',
+            memo: item.acceptorMemo,
+            queueType: mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
+            message: item.acceptorMemo || '',
+            headCount: item.headCount || 5,
+            tier: memberInfo.rankInfo?.tier || 'Unranked',
+            leaguePoint: memberInfo.rankInfo?.lp || 0,
+            rank: memberInfo.rankInfo?.rank || '',
+            updatedAt: item.updatedAt,
+            type: '내전',
+            champions: memberInfo.most3Champ || [],
+            wins: memberInfo.rankInfo?.wins || 0,
+            losses: memberInfo.rankInfo?.losses || 0,
+            // 원본 API 데이터 저장 (모달용)
+            originalData: item,
+            party: partyInfo.map(p => ({
+                gameName: p.gameName,
+                tagLine: p.tagLine,
+                profileUrl: p.profileUrl || '/default.png',
+                myPosition: p.myPosition?.toLowerCase() || 'nothing',
+                tier: p.rankInfo?.tier || 'unranked',
+                rank: p.rankInfo?.rank || '',
+                lp: p.rankInfo?.lp || 0,
+                wins: p.rankInfo?.wins || 0,
+                losses: p.rankInfo?.losses || 0,
+                champions: p.most3Champ || []
+            }))
+        };
+    }
+
+    // 기존 듀오 처리 로직에도 originalData 추가
     const riot = acceptor?.memberInfo?.riotAccount || {};
     const memberInfo = acceptor?.memberInfo || {};
     const userInfo = acceptor?.userInfo || {};
@@ -434,7 +551,7 @@ const transformAcceptorToFrontend = (item) => {
         avatarUrl: riot.profileUrl,
         school: memberInfo.univName || '미인증',
         department: memberInfo.department || '',
-        memo : item.acceptorMemo,
+        memo: item.acceptorMemo,
         queueType:
             mapCode === 'RANK'
                 ? '랭크'
@@ -454,10 +571,12 @@ const transformAcceptorToFrontend = (item) => {
         lookingForPosition: '',
         lookingForStyle: '',
         updatedAt: item.updatedAt,
-        type: matchingCategory === 'DUO' ? '듀오' : '내전',
+        type: '듀오',
         champions: memberInfo.most3Champ || [],
         wins: memberInfo.rankInfo?.wins || 0,
         losses: memberInfo.rankInfo?.losses || 0,
+        // 원본 데이터 추가
+        originalData: item
     };
 };
 

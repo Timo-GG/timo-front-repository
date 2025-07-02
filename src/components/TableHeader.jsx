@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 
 export default function TableHeader() {
     const columns = [1.5, 1, 1.5, 1.5, 2, 0.5, 1, 1.5];
-    const headers = ['소환사', '티어', '승률(최근 10게임)', '모스트 챔피언', '한 줄 소개', '분류', '등록 일시', '듀오 신청'];
+    const headers = ['소환사', '티어', '승률', '모스트 챔피언', '한 줄 소개', '분류', '등록 일시', '듀오 신청'];
 
     return (
         <Box sx={{

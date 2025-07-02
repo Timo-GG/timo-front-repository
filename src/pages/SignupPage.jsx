@@ -6,10 +6,21 @@ import {
     Button,
     useTheme,
     Checkbox,
-    FormControlLabel
+    FormControlLabel,
+    Paper,
+    List,
+    ListItem,
+    ListItemText
 } from '@mui/material';
 import {useNavigate} from 'react-router-dom';
-import {updateUsername, verifyAccount, resetRiotAccount, registerRanking, updateUserAgreement} from '../apis/accountAPI';
+import {
+    updateUsername,
+    verifyAccount,
+    resetRiotAccount,
+    registerRanking,
+    updateUserAgreement,
+    updateNotificationEmail
+} from '../apis/accountAPI';
 import {deleteMyRanking} from '../apis/rankAPI';
 import {
     requestUnivVerification,
@@ -21,6 +32,8 @@ import {
 import {getMyInfo} from '../apis/authAPI';
 import useAuthStore from '../storage/useAuthStore';
 import TermsModal from '../components/TermsModal';
+import ConfirmDialog from '../components/ConfirmDialog';
+import { univJson } from '../data/univJson'; // univJson.js 파일 경로에 맞게 수정
 
 export default function SignupPage() {
     const theme = useTheme();
@@ -49,41 +62,95 @@ export default function SignupPage() {
     const [nicknameStatus, setNicknameStatus] = useState('');
     const [nicknameError, setNicknameError] = useState('');
 
+    const [skipDialogOpen, setSkipDialogOpen] = useState(false);
+
     const [allAgreed, setAllAgreed] = useState(false);
     const [termsAgreed, setTermsAgreed] = useState(false);
     const [privacyAgreed, setPrivacyAgreed] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
     const [modalType, setModalType] = useState('');
 
+    const [universitySearch, setUniversitySearch] = useState('');
+    const [filteredUniversities, setFilteredUniversities] = useState([]);
+    const [focusedUniversityIndex, setFocusedUniversityIndex] = useState(-1);
+    const universities = univJson.universities; // 배열 추출
+
+    const [notificationEmail, setNotificationEmail] = useState('');
+    const [useOAuthForNotification, setUseOAuthForNotification] = useState(true);
+    const [notificationEmailError, setNotificationEmailError] = useState('');
+    const [notificationEmailStatus, setNotificationEmailStatus] = useState('');
+    const [isNotificationEmailSet, setIsNotificationEmailSet] = useState(false);
+
+
     const openModal = (type) => {
         setModalType(type);
         setModalOpen(true);
     };
 
+    const isFormComplete = () => {
+        return (
+            nickname.trim() !== '' &&
+            isSummonerVerified &&
+            isUniversityVerified &&
+            termsAgreed &&
+            privacyAgreed
+        );
+    };
+
+
     const handleNext = () => {
-        if (!termsAgreed || !privacyAgreed) {
-            alert('서비스 이용약관과 개인정보 수집·이용에 모두 동의해주세요.');
+        if (!isFormComplete()) {
+            alert('모든 필수 항목을 완료해주세요.\n- 닉네임 설정\n- 소환사 계정 인증\n- 대학교 인증\n- 개인정보 동의');
             return;
         }
 
-        // 양쪽 인증 완료 시 비동기로 랭킹 등록
-        if (isSummonerVerified && isUniversityVerified) {
-            (async () => {
-                try {
-                    const info = await getMyInfo();
-                    const puuid = info.data.riotAccount?.puuid;
-                    if (puuid) {
-                        registerRanking(puuid); // await 제거 - 비동기로 처리
-                    }
-                } catch (err) {
-                    console.error('랭킹 등록 실패:', err);
-                }
-            })();
-        }
-
+        // 🚀 즉시 다음 페이지로 이동 (차단하지 않음)
         navigate('/profile-setup', {
-            state: {nickname, summonerName, university, schoolEmail, oauthEmail},
+            state: {
+                nickname,
+                summonerName,
+                university,
+                schoolEmail,
+                oauthEmail,
+                notificationEmail: useOAuthForNotification ? oauthEmail : notificationEmail
+            },
         });
+
+        // 🔄 백그라운드에서 비동기 처리 (페이지 이동과 병렬 실행)
+        (async () => {
+            try {
+                // 1. 알림 이메일 설정 (선택사항)
+                if (useOAuthForNotification && !isNotificationEmailSet) {
+                    try {
+                        await updateNotificationEmail(oauthEmail);
+                        console.log('✅ 알림 이메일 설정 완료:', oauthEmail);
+                    } catch (error) {
+                        console.warn('⚠️ 알림 이메일 설정 실패 (선택사항):', error);
+                    }
+                }
+
+                // 2. 랭킹 등록 (양쪽 인증 완료 시)
+                if (isSummonerVerified && isUniversityVerified) {
+                    try {
+                        const info = await getMyInfo();
+                        const puuid = info.data.riotAccount?.puuid;
+                        if (puuid) {
+                            await registerRanking(puuid);
+                            console.log('✅ 랭킹 등록 완료');
+                        }
+                    } catch (err) {
+                        console.error('❌ 랭킹 등록 실패:', err);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ 백그라운드 처리 중 오류:', error);
+                // 사용자는 이미 다음 페이지로 이동했으므로 별도 알림 없음
+            }
+        })();
+    };
+
+    const handleSkipConfirm = () => {
+        navigate('/')
     };
 
     // 초기 사용자 정보 로드
@@ -96,12 +163,34 @@ export default function SignupPage() {
                 setOauthEmail(profile.email || '');
                 setNickname(profile.username || '');
 
-                if (profile.riotAccount) {
+                if (profile.notificationEmail) {
+                    setNotificationEmail(profile.notificationEmail);
+                    setIsNotificationEmailSet(true);
+                    setUseOAuthForNotification(profile.notificationEmail === profile.email);
+                    setNotificationEmailStatus('✔️ 알림 이메일이 설정되었습니다.');
+                } else {
+                    setNotificationEmail(profile.email || '');
+                    setUseOAuthForNotification(true);
+                    setIsNotificationEmailSet(false);
+                }
+
+                // 🔥 RiotAccount null 체크 추가
+                if (profile.riotAccount &&
+                    profile.riotAccount.accountName &&
+                    profile.riotAccount.accountTag &&
+                    profile.riotAccount.accountName !== 'null' &&
+                    profile.riotAccount.accountTag !== 'null') {
+
                     const {accountName, accountTag, puuid} = profile.riotAccount;
                     setSummonerName(`${accountName}#${accountTag}`);
                     setIsSummonerVerified(true);
                     setSummonerVerified(true);
-                    setSummonerStatusMsg('✔️ 이미 인증이 완료된 소환사 계정입니다.');
+                    setSummonerStatusMsg('✔️ 인증 완료되었습니다.');
+                } else {
+                    // RiotAccount가 null이거나 값이 유효하지 않은 경우
+                    setSummonerName('');
+                    setIsSummonerVerified(false);
+                    setSummonerStatusMsg('');
                 }
 
                 if (profile.certifiedUnivInfo) {
@@ -112,13 +201,73 @@ export default function SignupPage() {
                     setIsUniversityValid(true);
                     setIsUniversityVerified(true);
                     setUniversityStatus('✔️ 이미 인증이 완료된 대학교 계정입니다.');
-                    setEmailError(''); // 이메일 에러 초기화
+                    setEmailError('');
                 }
             } catch (err) {
                 console.error('유저 정보 불러오기 실패:', err);
             }
         })();
     }, []);
+
+    const handleNotificationEmailToggle = useCallback(async () => {
+        setNotificationEmailError('');
+        setNotificationEmailStatus('');
+
+        if (isNotificationEmailSet) {
+            // 해제
+            try {
+                await updateNotificationEmail(null);
+                setIsNotificationEmailSet(false);
+                setNotificationEmailStatus('알림 이메일이 해제되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 해제 실패:', error);
+                setNotificationEmailError('알림 이메일 해제 중 오류가 발생했습니다.');
+            }
+        } else {
+            // 등록
+            const finalEmail = useOAuthForNotification ? oauthEmail : notificationEmail;
+
+            // 이메일 유효성 검사
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(finalEmail)) {
+                setNotificationEmailError('올바르지 않은 이메일 형식입니다.');
+                return;
+            }
+
+            try {
+                await updateNotificationEmail(finalEmail);
+                setIsNotificationEmailSet(true);
+                setNotificationEmailStatus('✔️ 알림 이메일이 설정되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 설정 실패:', error);
+                if (error.response?.data?.message) {
+                    setNotificationEmailError(error.response.data.message);
+                } else {
+                    setNotificationEmailError('알림 이메일 설정 중 오류가 발생했습니다.');
+                }
+            }
+        }
+    }, [isNotificationEmailSet, useOAuthForNotification, oauthEmail, notificationEmail]);
+
+    useEffect(() => {
+        if (!universitySearch || !universities) {
+            setFilteredUniversities([]);
+            return;
+        }
+
+        const result = universities.filter((univ) =>
+            univ.toLowerCase().includes(universitySearch.toLowerCase())
+        );
+        setFilteredUniversities(result.slice(0, 10)); // 최대 10개만 표시
+    }, [universitySearch]);
 
     // 소환사 인증/해제 핸들러
     const handleSummonerToggle = useCallback(async () => {
@@ -162,24 +311,23 @@ export default function SignupPage() {
     }, [isSummonerVerified, summonerName]);
 
     // 대학교 확인/해제 핸들러
+    // 대학교 확인/해제 핸들러 수정
     const handleUniversityCheck = useCallback(async () => {
         if (isUniversityLocked) {
             try {
-                // 대학 이메일 초기화 API 호출
                 await updateUnivAccount({univName: null, univEmail: null});
-
-                // 상태 초기화
                 setIsUniversityLocked(false);
                 setIsUniversityValid(false);
                 setIsUniversityVerified(false);
                 setUniversity('');
+                setUniversitySearch(''); // 검색어도 초기화
                 setSchoolEmail('');
                 setEmailError('');
                 setEmailSent(false);
                 setShowVerificationInput(false);
                 setUniversityStatus('');
+                setFilteredUniversities([]); // 필터된 목록도 초기화
 
-                // 사용자 정보 업데이트
                 const {data: profile} = await getMyInfo();
                 setUserData(profile);
 
@@ -306,7 +454,242 @@ export default function SignupPage() {
                 gap: 3,
             }}
         >
-            <Typography variant="h5" fontWeight="bold">회원가입</Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Typography variant="h5" fontWeight="bold">회원가입</Typography>
+                <Button
+                    variant="text"
+                    onClick={() => setSkipDialogOpen(true)}
+                    sx={{
+                        color: theme.palette.text.secondary,
+                        fontSize: '0.9rem',
+                        textDecoration: 'underline',
+                        '&:hover': {
+                            backgroundColor: 'transparent',
+                            textDecoration: 'underline',
+                        }
+                    }}
+                >
+                    다음에 하기
+                </Button>
+            </Box>
+
+            {/* 개인정보 동의 */}
+            <Box sx={{ mt: 3 }}>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>개인정보 동의</Typography>
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={termsAgreed}
+                            onChange={(e) => setTermsAgreed(e.target.checked)}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
+                            <span
+                                onClick={() => openModal('terms')}
+                                style={{
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                서비스 이용약관
+                            </span>에 동의합니다. (필수)
+                        </Typography>
+                    }
+                />
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={privacyAgreed}
+                            onChange={(e) => setPrivacyAgreed(e.target.checked)}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
+                            <span
+                                onClick={() => openModal('privacy')}
+                                style={{
+                                    textDecoration: 'underline',
+                                    cursor: 'pointer',
+                                    fontWeight: 'bold'
+                                }}
+                            >
+                                개인정보 수집·이용
+                            </span>에 동의합니다. (필수)
+                        </Typography>
+                    }
+                />
+            </Box>
+
+            {/* 알림 수신 이메일 */}
+            <Box sx={{ mt: 1 }}>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                    알림 수신 이메일 (선택사항)
+                </Typography>
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={useOAuthForNotification}
+                            onChange={(e) => {
+                                setUseOAuthForNotification(e.target.checked);
+                                if (e.target.checked) {
+                                    setNotificationEmail(oauthEmail);
+                                    setNotificationEmailError('');
+                                } else {
+                                    setNotificationEmail('');
+                                }
+                            }}
+                            disabled={isNotificationEmailSet}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                            가입한 이메일로 알림 받기
+                        </Typography>
+                    }
+                />
+
+
+
+                {!useOAuthForNotification && !isNotificationEmailSet && (
+                    <Box sx={{ mt: 2 }}>
+                        <Box sx={{ display: 'flex', height: '56px' }}>
+                            <TextField
+                                fullWidth
+                                value={notificationEmail}
+                                onChange={(e) => {
+                                    setNotificationEmail(e.target.value);
+                                    setNotificationEmailError('');
+                                }}
+                                variant="outlined"
+                                placeholder="알림을 받을 이메일 주소를 입력하세요"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        height: '100%',
+                                        borderRadius: '12px 0 0 12px',
+                                        backgroundColor: theme.palette.background.input,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        '& fieldset': { borderColor: 'transparent' },
+                                        '& input': {
+                                            color: theme.palette.text.primary,
+                                            padding: '12px 14px',
+                                        },
+                                    },
+                                }}
+                            />
+                            <Button
+                                onClick={handleNotificationEmailToggle}
+                                sx={{
+                                    height: '100%',
+                                    borderRadius: '0 12px 12px 0',
+                                    backgroundColor: theme.palette.background.input,
+                                    color: theme.palette.text.secondary,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    borderLeft: 'none',
+                                    px: 3,
+                                    minWidth: '80px',
+                                }}
+                            >
+                                등록
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
+
+                {isNotificationEmailSet && (
+                    <Box sx={{ mt: 2 }}>
+                        <Box sx={{ display: 'flex', height: '56px' }}>
+                            <TextField
+                                fullWidth
+                                value={notificationEmail || '설정된 알림 이메일'}
+                                disabled={true}
+                                variant="outlined"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        height: '100%',
+                                        borderRadius: '12px 0 0 12px',
+                                        backgroundColor: theme.palette.background.inputDisabled,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        '& fieldset': { borderColor: 'transparent' },
+                                        '& input': {
+                                            color: theme.palette.text.disabled,
+                                            padding: '12px 14px',
+                                        },
+                                    },
+                                }}
+                            />
+                            <Button
+                                onClick={handleNotificationEmailToggle}
+                                sx={{
+                                    height: '100%',
+                                    borderRadius: '0 12px 12px 0',
+                                    backgroundColor: theme.palette.background.input,
+                                    color: theme.palette.text.secondary,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    borderLeft: 'none',
+                                    px: 3,
+                                    minWidth: '80px',
+                                }}
+                            >
+                                해제
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
+
+                <Box sx={{ minHeight: 20, mt: 1 }}>
+                    {notificationEmailError && (
+                        <Typography variant="caption" color={theme.palette.error.main}>
+                            {notificationEmailError}
+                        </Typography>
+                    )}
+                    {!notificationEmailError && notificationEmailStatus && (
+                        <Typography
+                            variant="caption"
+                            color={notificationEmailStatus.includes('✔️') ?
+                                theme.palette.success.main :
+                                theme.palette.info.main
+                            }
+                        >
+                            {notificationEmailStatus}
+                        </Typography>
+                    )}
+                    {!notificationEmailError && !notificationEmailStatus && (
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                display: 'block',
+                                pl: 1
+                            }}
+                        >
+                            매칭 관련 상태, 채팅 알림 등을 받을 수 있습니다.
+                        </Typography>
+                    )}
+                </Box>
+            </Box>
 
             {/* 이메일 */}
             <Box>
@@ -458,44 +841,122 @@ export default function SignupPage() {
             {/* 대학교 */}
             <Box>
                 <Typography color="text.secondary" sx={{mb: 1}}>대학교</Typography>
-                <Box sx={{display: 'flex', height: '56px'}}>
-                    <TextField
-                        fullWidth
-                        value={university}
-                        onChange={(e) => {
-                            setUniversity(e.target.value);
-                            setUniversityStatus('');
-                        }}
-                        disabled={isUniversityLocked}
-                        variant="outlined"
-                        placeholder="서울과학기술대학교"
-                        sx={{
-                            '& .MuiOutlinedInput-root': {
+                <Box sx={{ position: 'relative' }}>
+                    <Box sx={{display: 'flex', height: '56px'}}>
+                        <TextField
+                            fullWidth
+                            value={universitySearch}
+                            onChange={(e) => {
+                                setUniversitySearch(e.target.value);
+                                setUniversity('');
+                                setUniversityStatus('');
+                                setFocusedUniversityIndex(-1);
+                            }}
+                            onKeyDown={(e) => {
+                                if (e.key === 'ArrowDown') {
+                                    setFocusedUniversityIndex((prev) =>
+                                        Math.min(prev + 1, filteredUniversities.length - 1)
+                                    );
+                                } else if (e.key === 'ArrowUp') {
+                                    setFocusedUniversityIndex((prev) => Math.max(prev - 1, 0));
+                                } else if (e.key === 'Enter' && focusedUniversityIndex >= 0) {
+                                    const selected = filteredUniversities[focusedUniversityIndex];
+                                    setUniversity(selected);
+                                    setUniversitySearch(selected);
+                                    setFilteredUniversities([]);
+                                    setFocusedUniversityIndex(-1);
+                                }
+                            }}
+                            disabled={isUniversityLocked}
+                            variant="outlined"
+                            placeholder="서울과학기술대학교"
+                            sx={{
+                                '& .MuiOutlinedInput-root': {
+                                    height: '100%',
+                                    borderRadius: '12px 0 0 12px',
+                                    backgroundColor: theme.palette.background.input,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    '& fieldset': {borderColor: 'transparent'},
+                                    '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
+                                },
+                            }}
+                        />
+                        <Button
+                            onClick={handleUniversityCheck}
+                            sx={{
                                 height: '100%',
-                                borderRadius: '12px 0 0 12px',
+                                borderRadius: '0 12px 12px 0',
                                 backgroundColor: theme.palette.background.input,
+                                color: theme.palette.text.secondary,
                                 border: `1px solid ${theme.palette.border.main}`,
-                                '& fieldset': {borderColor: 'transparent'},
-                                '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
-                            },
-                        }}
-                    />
-                    <Button
-                        onClick={handleUniversityCheck}
-                        sx={{
-                            height: '100%',
-                            borderRadius: '0 12px 12px 0',
-                            backgroundColor: theme.palette.background.input,
-                            color: theme.palette.text.secondary,
-                            border: `1px solid ${theme.palette.border.main}`,
-                            borderLeft: 'none',
-                            px: 3,
-                            minWidth: '80px',
-                        }}
-                    >
-                        {isUniversityLocked ? '해제' : '확인'}
-                    </Button>
+                                borderLeft: 'none',
+                                px: 3,
+                                minWidth: '80px',
+                            }}
+                        >
+                            {isUniversityLocked ? '해제' : '확인'}
+                        </Button>
+                    </Box>
+
+                    {/* 대학교 검색 결과 드롭다운 */}
+                    {filteredUniversities.length > 0 && universitySearch !== university && !isUniversityLocked && (
+                        <Paper
+                            sx={{
+                                position: 'absolute',
+                                top: '100%',
+                                left: 0,
+                                right: 0,
+                                zIndex: 10,
+                                backgroundColor: theme.palette.background.paper,
+                                border: `1px solid ${theme.palette.border.main}`,
+                                borderTop: 'none',
+                                borderBottomLeftRadius: 12,
+                                borderBottomRightRadius: 12,
+                                maxHeight: 200,
+                                overflowY: 'auto',
+                                boxShadow: theme.shadows[4],
+                            }}
+                        >
+                            <List dense>
+                                {filteredUniversities.map((univ, index) => (
+                                    <ListItem
+                                        key={index}
+                                        selected={focusedUniversityIndex === index}
+                                        onMouseEnter={() => setFocusedUniversityIndex(index)}
+                                        onClick={() => {
+                                            setUniversity(univ);
+                                            setUniversitySearch(univ);
+                                            setFilteredUniversities([]);
+                                            setFocusedUniversityIndex(-1);
+                                        }}
+                                        sx={{
+                                            px: 2,
+                                            py: 1,
+                                            cursor: 'pointer',
+                                            bgcolor: focusedUniversityIndex === index
+                                                ? theme.palette.action.hover
+                                                : 'inherit',
+                                            '&:hover': {
+                                                bgcolor: theme.palette.action.hover,
+                                            },
+                                        }}
+                                    >
+                                        <ListItemText
+                                            primary={univ}
+                                            sx={{
+                                                '& .MuiListItemText-primary': {
+                                                    fontSize: '0.9rem',
+                                                    color: theme.palette.text.primary,
+                                                }
+                                            }}
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </Paper>
+                    )}
                 </Box>
+
                 {universityStatus && (
                     <Typography
                         variant="caption"
@@ -630,87 +1091,41 @@ export default function SignupPage() {
                 </Box>
             )}
 
-            {/* 개인정보 동의 */}
-            <Box sx={{ mt: 3 }}>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>개인정보 동의</Typography>
-
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={termsAgreed}
-                            onChange={(e) => setTermsAgreed(e.target.checked)}
-                            sx={{
-                                color: theme.palette.text.secondary,
-                                '&.Mui-checked': {
-                                    color: theme.palette.primary.main,
-                                },
-                            }}
-                        />
-                    }
-                    label={
-                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
-                            <span
-                                onClick={() => openModal('terms')}
-                                style={{
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                서비스 이용약관
-                            </span>에 동의합니다. (필수)
-                        </Typography>
-                    }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
-                />
-
-                <FormControlLabel
-                    control={
-                        <Checkbox
-                            checked={privacyAgreed}
-                            onChange={(e) => setPrivacyAgreed(e.target.checked)}
-                            sx={{
-                                color: theme.palette.text.secondary,
-                                '&.Mui-checked': {
-                                    color: theme.palette.primary.main,
-                                },
-                            }}
-                        />
-                    }
-                    label={
-                        <Typography variant="body2" sx={{color: theme.palette.text.secondary}}>
-                            <span
-                                onClick={() => openModal('privacy')}
-                                style={{
-                                    textDecoration: 'underline',
-                                    cursor: 'pointer',
-                                    fontWeight: 'bold'
-                                }}
-                            >
-                                개인정보 수집·이용
-                            </span>에 동의합니다. (필수)
-                        </Typography>
-                    }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
-                />
-            </Box>
-
             {/* 다음 버튼 */}
             <Button
                 variant="contained"
                 fullWidth
+                disabled={!isFormComplete()} // 🔥 조건부 비활성화
                 sx={{
                     height: '56px',
                     borderRadius: '12px',
-                    backgroundColor: theme.palette.primary.main,
-                    color: 'white',
+                    backgroundColor: isFormComplete()
+                        ? theme.palette.primary.main
+                        : theme.palette.action.disabled,
+                    color: isFormComplete() ? 'white' : theme.palette.text.disabled,
                     fontWeight: 'bold',
                     mt: 4,
+                    '&:disabled': {
+                        backgroundColor: '#424254',
+                        color: theme.palette.text.disabled,
+                    }
                 }}
                 onClick={handleNext}
             >
-                다음
+                다음 {!isFormComplete() && '(모든 항목을 완료해주세요)'}
             </Button>
+
+            {/* 🔥 다음에 하기 확인 다이얼로그 */}
+            <ConfirmDialog
+                open={skipDialogOpen}
+                onClose={() => setSkipDialogOpen(false)}
+                onConfirm={handleSkipConfirm}
+                title="정말 다음에 하시겠습니까?"
+                message="저희 서비스를 원활하게 이용하려면 소환사 계정 인증과 대학교 인증이 필요합니다. 나중에 마이페이지에서 언제든지 인증하실 수 있습니다."
+                confirmText="다음에 하기"
+                cancelText="계속 작성하기"
+                danger={false}
+            />
 
             {/* 모달 */}
             <TermsModal

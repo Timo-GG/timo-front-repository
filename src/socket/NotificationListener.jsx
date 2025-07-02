@@ -36,6 +36,11 @@ export default function NotificationListener() {
             addNotification(JSON.parse(event.data));
         });
 
+        eventSource.addEventListener('DUO_REJECTED', (event) => {
+            console.log('📩 듀오 거절 알림:', JSON.parse(event.data));
+            addNotification(JSON.parse(event.data));
+        });
+
         eventSource.addEventListener('RANKING_REGISTERED', (event) => {
             const data = JSON.parse(event.data);
             console.log('📩 랭킹 등록 알림:', data);

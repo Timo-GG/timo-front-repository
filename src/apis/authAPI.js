@@ -4,6 +4,7 @@ import useAuthStore from '../storage/useAuthStore';
 
 // 소셜 로그인 처리
 export const socialLogin = async (provider, authorizationCode, state) => {
+    console.log('🚀 socialLogin 호출됨:', provider, authorizationCode); // 이 로그 추가
     try {
         let response;
 
@@ -19,6 +20,10 @@ export const socialLogin = async (provider, authorizationCode, state) => {
                     authorizationCode,
                     state,
                 });
+                break;
+            case 'riot':
+                console.log('🎯 riot 케이스 실행됨'); // 이 로그 추가
+                response = await axiosInstance.post('/auth/riot', { authorizationCode });
                 break;
             default:
                 throw new Error('지원하지 않는 provider입니다.');

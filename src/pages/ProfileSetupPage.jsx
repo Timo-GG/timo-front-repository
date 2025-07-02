@@ -19,26 +19,50 @@ import PositionFilterBar from '../components/duo/PositionFilterBar';
 import { useNavigate } from 'react-router-dom';
 import SearchIcon from '@mui/icons-material/Search';
 import { updateRankingInfo } from '/src/apis/rankAPI';
-
-
+import { getMyInfo } from '../apis/authAPI';
+import useAuthStore from '../storage/useAuthStore';
 
 const POSITION_LIST = ['nothing', 'top', 'jungle', 'mid', 'bottom', 'support'];
 
-
 export default function ProfileSetupPage() {
-    const [position, setPosition] = useState('');
+    const [position, setPosition] = useState('nothing');
     const [department, setDepartment] = useState('');
-    const [selectedGender, setSelectedGender] = useState('');
+    const [selectedGender, setSelectedGender] = useState('비밀');
     const [selectedMbti, setSelectedMbti] = useState([]);
     const [memo, setMemo] = useState('');
     const [search, setSearch] = useState('');
     const [filteredDepts, setFilteredDepts] = useState([]);
     const [focusedIndex, setFocusedIndex] = useState(-1);
+    const [selectedUniversity, setSelectedUniversity] = useState('');
+    const [isUniversityVerified, setIsUniversityVerified] = useState(false);
     const navigate = useNavigate();
-    const selectedUniversity = '서울과학기술대학교'; // 예시
+    const { userData } = useAuthStore();
+
+    // 사용자의 인증된 대학교 정보 가져오기
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            try {
+                const res = await getMyInfo();
+                const profile = res.data;
+
+                if (profile.certifiedUnivInfo) {
+                    const { univName } = profile.certifiedUnivInfo;
+                    setSelectedUniversity(univName);
+                    setIsUniversityVerified(true);
+                } else {
+                    setIsUniversityVerified(false);
+                }
+            } catch (error) {
+                console.error('사용자 정보 가져오기 실패:', error);
+                setIsUniversityVerified(false);
+            }
+        };
+
+        fetchUserInfo();
+    }, []);
 
     useEffect(() => {
-        if (!search || !schoolDepartmentsJson[selectedUniversity]) {
+        if (!search || !selectedUniversity || !schoolDepartmentsJson[selectedUniversity]) {
             setFilteredDepts([]);
             return;
         }
@@ -78,28 +102,30 @@ export default function ProfileSetupPage() {
             };
 
             const dto = {
-                position: position.toUpperCase(), // 서버는 대문자 기대
+                position: position.toUpperCase(),
                 department,
                 gender: genderMap[selectedGender],
                 mbti: mbtiString,
                 memo,
             };
 
-            await updateRankingInfo(dto); // ✅ 서버에 등록 요청
+            await updateRankingInfo(dto);
             alert('정보가 성공적으로 등록되었습니다.');
-            navigate('/'); // 등록 성공하면 메인으로 이동
+            navigate('/');
         } catch (error) {
             console.error(error);
             alert('정보 등록에 실패했습니다.');
         }
     };
 
+
+
     return (
         <Box sx={{ backgroundColor: '#12121a', minHeight: '100vh', px: 2, py: 6, maxWidth: 460, mx: 'auto' }}>
             <Typography variant="h5" fontWeight="bold" color="#fff" mb={1}>
                 내 정보 (선택사항)
             </Typography>
-            <Typography fontSize="0.75rem" color="#888" mb={3}>
+            <Typography fontSize="0.75rem" color="#888" mb={1}>
                 랭킹페이지 > 내 정보 수정하기에서 변경할 수 있습니다.
             </Typography>
 
@@ -124,6 +150,7 @@ export default function ProfileSetupPage() {
                     fullWidth
                     size="small"
                     value={search}
+                    disabled={!isUniversityVerified}
                     onChange={(e) => {
                         setSearch(e.target.value);
                         setDepartment('');
@@ -142,24 +169,37 @@ export default function ProfileSetupPage() {
                             setFocusedIndex(-1);
                         }
                     }}
-                    placeholder="학과명을 입력하세요"
+                    placeholder={isUniversityVerified ? "학과명을 입력하세요" : "대학교 인증 후 이용 가능합니다"}
                     InputProps={{
                         startAdornment: (
                             <SearchIcon sx={{ color: '#888', mr: 1 }} />
                         ),
                     }}
                     sx={{
-                        backgroundColor: '#2A2B31',
+                        backgroundColor: isUniversityVerified ? '#2A2B31' : '#1A1A1A',
                         color: '#fff',
                         fontSize: '0.8rem',
-                        input: { color: '#fff' },
+                        input: { color: isUniversityVerified ? '#fff' : '#666' },
                         '& .MuiOutlinedInput-root': {
-                            '& fieldset': { border: '1px solid #424254', borderRadius: '6px' },
+                            borderRadius: '6px',
+                            '& fieldset': {
+                                border: '1px solid #424254',
+                                borderRadius: '6px'
+                            },
+                            '&:hover fieldset': {
+                                border: '1px solid #424254',
+                            },
+                            '&.Mui-focused fieldset': {
+                                border: '1px solid #424254',
+                            },
+                            '&.Mui-disabled fieldset': {
+                                border: '1px solid #424254',
+                            },
                         },
                     }}
                 />
 
-                {filteredDepts.length > 0 && search !== department && (
+                {filteredDepts.length > 0 && search !== department && isUniversityVerified && (
                     <Paper
                         sx={{
                             position: 'absolute',
@@ -205,7 +245,6 @@ export default function ProfileSetupPage() {
                     </Paper>
                 )}
             </Box>
-
 
             {/* 성별 */}
             <Typography mb={0.5} color="#aaa" fontSize="0.8rem">성별</Typography>
@@ -325,7 +364,6 @@ export default function ProfileSetupPage() {
                     완료
                 </Button>
             </Box>
-
         </Box>
     );
 }
