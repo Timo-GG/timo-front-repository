@@ -9,7 +9,14 @@ import {
 } from '@mui/material';
 import WithdrawConfirmDialog from '../components/WithdrawConfirmDialog';
 import useAuthStore from '../storage/useAuthStore';
-import {updateUsername, verifyAccount, resetRiotAccount, registerRanking, deleteAccount} from '../apis/accountAPI';
+import {
+    updateUsername,
+    verifyAccount,
+    resetRiotAccount,
+    registerRanking,
+    deleteAccount,
+    updateNotificationEmail
+} from '../apis/accountAPI';
 import {
     checkUniv,
     requestUnivVerification,
@@ -23,7 +30,8 @@ import {getSocket} from "../socket/socket.js";
 import {useNavigate} from "react-router-dom";
 import useNotificationStore from "../storage/useNotification.jsx";
 import SummonerInfo from '../components/SummonerInfo';
-import { linkRiotAccount } from '../apis/accountAPI';
+import { linkRiotAccount, updateVerificationType } from '../apis/accountAPI';
+
 
 export default function MySettingPage() {
     const theme = useTheme();
@@ -58,6 +66,12 @@ export default function MySettingPage() {
     // ━━━━━━━━━━━ 계정 탈퇴 다이얼로그 ━━━━━━━━━━━
     const [isWithdrawDialogOpen, setIsWithdrawDialogOpen] = useState(false);
 
+    // ━━━━━━━━━━━ 알림 이메일 관련 상태 추가 ━━━━━━━━━━━
+    const [notificationEmail, setNotificationEmail] = useState('');
+    const [isNotificationEmailSet, setIsNotificationEmailSet] = useState(false);
+    const [notificationEmailError, setNotificationEmailError] = useState('');
+    const [notificationEmailStatus, setNotificationEmailStatus] = useState('');
+
     const navigate = useNavigate();
 
 
@@ -66,6 +80,42 @@ export default function MySettingPage() {
         localStorage.setItem('riotLinkMode', 'true');
         window.location.href = `https://auth.riotgames.com/authorize?client_id=${import.meta.env.VITE_RIOT_CLIENT_ID}&redirect_uri=${import.meta.env.VITE_RIOT_REDIRECT_URI}&response_type=code&scope=openid&prompt=login`;
     };
+
+    useEffect(() => {
+        const handleOAuthCallback = async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const isLinkMode = localStorage.getItem('riotLinkMode') === 'true';
+
+            if (code && isLinkMode) {
+                try {
+                    await linkRiotAccount(code);
+                    localStorage.removeItem('riotLinkMode');
+
+                    // 프로필 정보 갱신
+                    const { data: profile } = await getMyInfo();
+                    setUserData(profile);
+
+                    // ✅ rankAPI.js의 함수 사용
+                    if (profile.riotAccount?.verificationType === 'RSO_VERIFIED') {
+                        try {
+                            await updateVerificationType('RSO_VERIFIED');
+                            console.log('랭킹 verificationType 업데이트 완료');
+                        } catch (error) {
+                            console.error('랭킹 verificationType 업데이트 실패:', error);
+                        }
+                    }
+
+                    setSummonerStatusMsg('✔️ 소환사 계정 연동 완료');
+                } catch (error) {
+                    console.error('OAuth 연동 실패:', error);
+                    setSummonerStatusMsg('소환사 계정 연동에 실패했습니다.');
+                }
+            }
+        };
+
+        handleOAuthCallback();
+    }, []);
 
     // ━━━━━━━━━━━ userData 로부터 초기값 세팅 ━━━━━━━━━━━
     useEffect(() => {
@@ -111,6 +161,18 @@ export default function MySettingPage() {
             setUnivNameStatus('');
             setUnivEmail('');
         }
+
+        // 알림 이메일 초기화 추가
+        if (userData.notificationEmail) {
+            setNotificationEmail(userData.notificationEmail);
+            setIsNotificationEmailSet(true);
+            setNotificationEmailStatus('');
+        } else {
+            setNotificationEmail('');
+            setIsNotificationEmailSet(false);
+            setNotificationEmailStatus('');
+        }
+
     }, [userData]);
 
     // ━━━━━━━━━━━ 소환사(롤 계정) 등록/해제 핸들러 ━━━━━━━━━━━
@@ -336,6 +398,53 @@ export default function MySettingPage() {
             alert('탈퇴 처리 중 오류가 발생했습니다.');
         }
     };
+
+    // ━━━━━━━━━━━ 알림 이메일 등록/해제 핸들러 ━━━━━━━━━━━
+    async function handleNotificationEmailToggle() {
+        setNotificationEmailError('');
+        setNotificationEmailStatus('');
+
+        if (isNotificationEmailSet) {
+            // 해제
+            try {
+                await updateNotificationEmail(null);
+                setIsNotificationEmailSet(false);
+                setNotificationEmail('');
+                setNotificationEmailStatus('알림 이메일이 해제되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 해제 실패:', error);
+                setNotificationEmailError('알림 이메일 해제 중 오류가 발생했습니다.');
+            }
+        } else {
+            // 등록
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(notificationEmail)) {
+                setNotificationEmailError('올바른 이메일 형식을 입력해주세요.');
+                return;
+            }
+
+            try {
+                await updateNotificationEmail(notificationEmail);
+                setIsNotificationEmailSet(true);
+                setNotificationEmailStatus('✔️ 알림 이메일이 설정되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 설정 실패:', error);
+                if (error.response?.data?.message) {
+                    setNotificationEmailError(error.response.data.message);
+                } else {
+                    setNotificationEmailError('알림 이메일 설정 중 오류가 발생했습니다.');
+                }
+            }
+        }
+    }
 
     const renderSummonerSection = () => {
         const verificationType = userData?.riotAccount?.verificationType;
@@ -704,6 +813,92 @@ export default function MySettingPage() {
                                 {usernameError || usernameMessage}
                             </Typography>
                         )}
+                    </Box>
+
+                    {/* ───────────────────────────────── 알림 수신 이메일 ───────────────────────────────── */}
+                    <Box>
+                        <Typography color="text.secondary" sx={{mb: 1}}>알림 수신 이메일</Typography>
+                        <Box sx={{display: 'flex', height: '56px'}}>
+                            <TextField
+                                fullWidth
+                                placeholder="알림을 받을 이메일 주소를 입력하세요"
+                                value={isNotificationEmailSet ?
+                                    (notificationEmail || '설정된 알림 이메일') :
+                                    notificationEmail
+                                }
+                                onChange={(e) => {
+                                    if (!isNotificationEmailSet) {
+                                        setNotificationEmail(e.target.value);
+                                        setNotificationEmailError('');
+                                        setNotificationEmailStatus('');
+                                    }
+                                }}
+                                disabled={isNotificationEmailSet}
+                                variant="outlined"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        height: '100%',
+                                        borderRadius: '12px 0 0 12px',
+                                        backgroundColor: isNotificationEmailSet
+                                            ? theme.palette.background.inputDisabled
+                                            : theme.palette.background.input,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        '& fieldset': {borderColor: 'transparent'},
+                                        '& input': {
+                                            color: isNotificationEmailSet
+                                                ? theme.palette.text.disabled
+                                                : theme.palette.text.primary,
+                                            padding: '12px 14px',
+                                        },
+                                    },
+                                }}
+                            />
+                            <Button
+                                onClick={handleNotificationEmailToggle}
+                                sx={{
+                                    height: '100%',
+                                    borderRadius: '0 12px 12px 0',
+                                    backgroundColor: theme.palette.background.input,
+                                    color: theme.palette.text.secondary,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    borderLeft: 'none',
+                                    px: 3,
+                                    minWidth: '80px',
+                                }}
+                            >
+                                {isNotificationEmailSet ? '해제' : '등록'}
+                            </Button>
+                        </Box>
+
+                        <Box sx={{minHeight: 20, mt: 1}}>
+                            {notificationEmailError && (
+                                <Typography variant="caption" color={theme.palette.error.main}>
+                                    {notificationEmailError}
+                                </Typography>
+                            )}
+                            {!notificationEmailError && notificationEmailStatus && (
+                                <Typography
+                                    variant="caption"
+                                    color={notificationEmailStatus.includes('✔️') ?
+                                        theme.palette.success.main :
+                                        theme.palette.info.main
+                                    }
+                                >
+                                    {notificationEmailStatus}
+                                </Typography>
+                            )}
+                            {!notificationEmailError && !notificationEmailStatus && !isNotificationEmailSet && (
+                                <Typography
+                                    variant="caption"
+                                    sx={{
+                                        color: theme.palette.text.secondary,
+                                        pl: 1
+                                    }}
+                                >
+                                    매칭 관련 상태, 채팅 알림 등을 받을 수 있습니다.
+                                </Typography>
+                            )}
+                        </Box>
                     </Box>
 
                     {/* ───────────────────────────────── 소환사 이름 ───────────────────────────────── */}

@@ -73,6 +73,7 @@ export default function EvaluationTableItem({ user, evaluation, status, onEvalua
                     name={user.name}
                     tag={user.tag}
                     avatarUrl={user.avatarUrl}
+                    verificationType={user.verificationType}
                 />
             </Box>
             {/* 포지션 */}

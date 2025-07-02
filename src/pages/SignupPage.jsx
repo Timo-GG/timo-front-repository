@@ -13,7 +13,14 @@ import {
     ListItemText
 } from '@mui/material';
 import {useNavigate} from 'react-router-dom';
-import {updateUsername, verifyAccount, resetRiotAccount, registerRanking, updateUserAgreement} from '../apis/accountAPI';
+import {
+    updateUsername,
+    verifyAccount,
+    resetRiotAccount,
+    registerRanking,
+    updateUserAgreement,
+    updateNotificationEmail
+} from '../apis/accountAPI';
 import {deleteMyRanking} from '../apis/rankAPI';
 import {
     requestUnivVerification,
@@ -68,6 +75,13 @@ export default function SignupPage() {
     const [focusedUniversityIndex, setFocusedUniversityIndex] = useState(-1);
     const universities = univJson.universities; // 배열 추출
 
+    const [notificationEmail, setNotificationEmail] = useState('');
+    const [useOAuthForNotification, setUseOAuthForNotification] = useState(true);
+    const [notificationEmailError, setNotificationEmailError] = useState('');
+    const [notificationEmailStatus, setNotificationEmailStatus] = useState('');
+    const [isNotificationEmailSet, setIsNotificationEmailSet] = useState(false);
+
+
     const openModal = (type) => {
         setModalType(type);
         setModalOpen(true);
@@ -83,30 +97,56 @@ export default function SignupPage() {
         );
     };
 
+
     const handleNext = () => {
         if (!isFormComplete()) {
             alert('모든 필수 항목을 완료해주세요.\n- 닉네임 설정\n- 소환사 계정 인증\n- 대학교 인증\n- 개인정보 동의');
             return;
         }
 
-        // 양쪽 인증 완료 시 비동기로 랭킹 등록
-        if (isSummonerVerified && isUniversityVerified) {
-            (async () => {
-                try {
-                    const info = await getMyInfo();
-                    const puuid = info.data.riotAccount?.puuid;
-                    if (puuid) {
-                        registerRanking(puuid);
-                    }
-                } catch (err) {
-                    console.error('랭킹 등록 실패:', err);
-                }
-            })();
-        }
-
+        // 🚀 즉시 다음 페이지로 이동 (차단하지 않음)
         navigate('/profile-setup', {
-            state: {nickname, summonerName, university, schoolEmail, oauthEmail},
+            state: {
+                nickname,
+                summonerName,
+                university,
+                schoolEmail,
+                oauthEmail,
+                notificationEmail: useOAuthForNotification ? oauthEmail : notificationEmail
+            },
         });
+
+        // 🔄 백그라운드에서 비동기 처리 (페이지 이동과 병렬 실행)
+        (async () => {
+            try {
+                // 1. 알림 이메일 설정 (선택사항)
+                if (useOAuthForNotification && !isNotificationEmailSet) {
+                    try {
+                        await updateNotificationEmail(oauthEmail);
+                        console.log('✅ 알림 이메일 설정 완료:', oauthEmail);
+                    } catch (error) {
+                        console.warn('⚠️ 알림 이메일 설정 실패 (선택사항):', error);
+                    }
+                }
+
+                // 2. 랭킹 등록 (양쪽 인증 완료 시)
+                if (isSummonerVerified && isUniversityVerified) {
+                    try {
+                        const info = await getMyInfo();
+                        const puuid = info.data.riotAccount?.puuid;
+                        if (puuid) {
+                            await registerRanking(puuid);
+                            console.log('✅ 랭킹 등록 완료');
+                        }
+                    } catch (err) {
+                        console.error('❌ 랭킹 등록 실패:', err);
+                    }
+                }
+            } catch (error) {
+                console.error('❌ 백그라운드 처리 중 오류:', error);
+                // 사용자는 이미 다음 페이지로 이동했으므로 별도 알림 없음
+            }
+        })();
     };
 
     const handleSkipConfirm = () => {
@@ -122,6 +162,17 @@ export default function SignupPage() {
                 setUserData(profile);
                 setOauthEmail(profile.email || '');
                 setNickname(profile.username || '');
+
+                if (profile.notificationEmail) {
+                    setNotificationEmail(profile.notificationEmail);
+                    setIsNotificationEmailSet(true);
+                    setUseOAuthForNotification(profile.notificationEmail === profile.email);
+                    setNotificationEmailStatus('✔️ 알림 이메일이 설정되었습니다.');
+                } else {
+                    setNotificationEmail(profile.email || '');
+                    setUseOAuthForNotification(true);
+                    setIsNotificationEmailSet(false);
+                }
 
                 // 🔥 RiotAccount null 체크 추가
                 if (profile.riotAccount &&
@@ -157,6 +208,54 @@ export default function SignupPage() {
             }
         })();
     }, []);
+
+    const handleNotificationEmailToggle = useCallback(async () => {
+        setNotificationEmailError('');
+        setNotificationEmailStatus('');
+
+        if (isNotificationEmailSet) {
+            // 해제
+            try {
+                await updateNotificationEmail(null);
+                setIsNotificationEmailSet(false);
+                setNotificationEmailStatus('알림 이메일이 해제되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 해제 실패:', error);
+                setNotificationEmailError('알림 이메일 해제 중 오류가 발생했습니다.');
+            }
+        } else {
+            // 등록
+            const finalEmail = useOAuthForNotification ? oauthEmail : notificationEmail;
+
+            // 이메일 유효성 검사
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(finalEmail)) {
+                setNotificationEmailError('올바르지 않은 이메일 형식입니다.');
+                return;
+            }
+
+            try {
+                await updateNotificationEmail(finalEmail);
+                setIsNotificationEmailSet(true);
+                setNotificationEmailStatus('✔️ 알림 이메일이 설정되었습니다.');
+
+                // 사용자 정보 업데이트
+                const {data: profile} = await getMyInfo();
+                setUserData(profile);
+            } catch (error) {
+                console.error('알림 이메일 설정 실패:', error);
+                if (error.response?.data?.message) {
+                    setNotificationEmailError(error.response.data.message);
+                } else {
+                    setNotificationEmailError('알림 이메일 설정 중 오류가 발생했습니다.');
+                }
+            }
+        }
+    }, [isNotificationEmailSet, useOAuthForNotification, oauthEmail, notificationEmail]);
 
     useEffect(() => {
         if (!universitySearch || !universities) {
@@ -405,7 +504,6 @@ export default function SignupPage() {
                             </span>에 동의합니다. (필수)
                         </Typography>
                     }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
                 />
 
                 <FormControlLabel
@@ -435,8 +533,162 @@ export default function SignupPage() {
                             </span>에 동의합니다. (필수)
                         </Typography>
                     }
-                    sx={{mb: 1, alignItems: 'flex-start'}}
                 />
+            </Box>
+
+            {/* 알림 수신 이메일 */}
+            <Box sx={{ mt: 1 }}>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                    알림 수신 이메일 (선택사항)
+                </Typography>
+
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={useOAuthForNotification}
+                            onChange={(e) => {
+                                setUseOAuthForNotification(e.target.checked);
+                                if (e.target.checked) {
+                                    setNotificationEmail(oauthEmail);
+                                    setNotificationEmailError('');
+                                } else {
+                                    setNotificationEmail('');
+                                }
+                            }}
+                            disabled={isNotificationEmailSet}
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                '&.Mui-checked': {
+                                    color: theme.palette.primary.main,
+                                },
+                            }}
+                        />
+                    }
+                    label={
+                        <Typography variant="body2" sx={{ color: theme.palette.text.secondary }}>
+                            가입한 이메일로 알림 받기
+                        </Typography>
+                    }
+                />
+
+
+
+                {!useOAuthForNotification && !isNotificationEmailSet && (
+                    <Box sx={{ mt: 2 }}>
+                        <Box sx={{ display: 'flex', height: '56px' }}>
+                            <TextField
+                                fullWidth
+                                value={notificationEmail}
+                                onChange={(e) => {
+                                    setNotificationEmail(e.target.value);
+                                    setNotificationEmailError('');
+                                }}
+                                variant="outlined"
+                                placeholder="알림을 받을 이메일 주소를 입력하세요"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        height: '100%',
+                                        borderRadius: '12px 0 0 12px',
+                                        backgroundColor: theme.palette.background.input,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        '& fieldset': { borderColor: 'transparent' },
+                                        '& input': {
+                                            color: theme.palette.text.primary,
+                                            padding: '12px 14px',
+                                        },
+                                    },
+                                }}
+                            />
+                            <Button
+                                onClick={handleNotificationEmailToggle}
+                                sx={{
+                                    height: '100%',
+                                    borderRadius: '0 12px 12px 0',
+                                    backgroundColor: theme.palette.background.input,
+                                    color: theme.palette.text.secondary,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    borderLeft: 'none',
+                                    px: 3,
+                                    minWidth: '80px',
+                                }}
+                            >
+                                등록
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
+
+                {isNotificationEmailSet && (
+                    <Box sx={{ mt: 2 }}>
+                        <Box sx={{ display: 'flex', height: '56px' }}>
+                            <TextField
+                                fullWidth
+                                value={notificationEmail || '설정된 알림 이메일'}
+                                disabled={true}
+                                variant="outlined"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        height: '100%',
+                                        borderRadius: '12px 0 0 12px',
+                                        backgroundColor: theme.palette.background.inputDisabled,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        '& fieldset': { borderColor: 'transparent' },
+                                        '& input': {
+                                            color: theme.palette.text.disabled,
+                                            padding: '12px 14px',
+                                        },
+                                    },
+                                }}
+                            />
+                            <Button
+                                onClick={handleNotificationEmailToggle}
+                                sx={{
+                                    height: '100%',
+                                    borderRadius: '0 12px 12px 0',
+                                    backgroundColor: theme.palette.background.input,
+                                    color: theme.palette.text.secondary,
+                                    border: `1px solid ${theme.palette.border.main}`,
+                                    borderLeft: 'none',
+                                    px: 3,
+                                    minWidth: '80px',
+                                }}
+                            >
+                                해제
+                            </Button>
+                        </Box>
+                    </Box>
+                )}
+
+                <Box sx={{ minHeight: 20, mt: 1 }}>
+                    {notificationEmailError && (
+                        <Typography variant="caption" color={theme.palette.error.main}>
+                            {notificationEmailError}
+                        </Typography>
+                    )}
+                    {!notificationEmailError && notificationEmailStatus && (
+                        <Typography
+                            variant="caption"
+                            color={notificationEmailStatus.includes('✔️') ?
+                                theme.palette.success.main :
+                                theme.palette.info.main
+                            }
+                        >
+                            {notificationEmailStatus}
+                        </Typography>
+                    )}
+                    {!notificationEmailError && !notificationEmailStatus && (
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                color: theme.palette.text.secondary,
+                                display: 'block',
+                                pl: 1
+                            }}
+                        >
+                            매칭 관련 상태, 채팅 알림 등을 받을 수 있습니다.
+                        </Typography>
+                    )}
+                </Box>
             </Box>
 
             {/* 이메일 */}
