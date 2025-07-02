@@ -19,8 +19,6 @@ import useOnlineStore from './storage/useOnlineStore';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Footer from "./components/Footer.jsx";
 import TermsModal from './components/TermsModal';
-import './firebase';
-import FCMManager from "./components/FCMManager.jsx";
 
 // Router 내부에서 사용할 컴포넌트 분리
 function AppContent() {
@@ -113,7 +111,6 @@ function AppContent() {
     return (
         <>
             <Header />
-            <FCMManager />
             <NotificationListener />
             <Routes>
                 <Route path="/" element={<MainPage />} />

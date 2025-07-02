@@ -67,3 +67,30 @@ export const linkRiotAccount = async (authorizationCode) => {
     }, { withAuth: true });
     return response.data;
 };
+
+// 알림 이메일 설정 업데이트
+export const updateNotificationEmail = async (notificationEmail) => {
+    const response = await axiosInstance.put(
+        '/members/notification-email',
+        { notificationEmail },
+        { withAuth: true }
+    );
+    return response.data;
+};
+
+// 알림 이메일 설정 조회
+export const getNotificationEmailSettings = async () => {
+    const response = await axiosInstance.get(
+        '/members/notification-email',
+        { withAuth: true }
+    );
+    return response.data;
+};
+
+export const updateVerificationType = async (verificationType) => {
+    const response = await axiosInstance.post('/members/verification-type', null, {
+        params: { verificationType },
+        withAuth: true
+    });
+    return response.data;
+};

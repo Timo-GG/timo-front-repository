@@ -13,4 +13,7 @@ export default defineConfig({
     // ✅ 아래 설정 추가!
     historyApiFallback: true,
   },
+  build: {
+    target: 'esnext' // 최신 ES 기능 지원
+  }
 });
