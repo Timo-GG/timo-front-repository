@@ -26,7 +26,7 @@ import PositionFilterBar from '/src/components/duo/PositionFilterBar';
 import useAuthStore from '../storage/useAuthStore';
 import ConfirmRequiredDialog from '../components/ConfirmRequiredDialog';
 import {useQuery} from '@tanstack/react-query';
-import {fetchAllDuoBoards, isExistMyBoard, refreshDuoBoards, deleteMyDuoBoard, fetchDuoBoard} from '../apis/redisAPI';
+import {fetchAllDuoBoards, isExistMyBoard, refreshDuoBoards, deleteMyDuoBoard, fetchDuoBoard, checkAlreadyApplied} from '../apis/redisAPI';
 import {getMyInfo} from '../apis/authAPI';
 import {useQueryClient} from '@tanstack/react-query';
 import {
@@ -300,11 +300,23 @@ export default function DuoPage() {
         setSelectedUser(user);
     };
 
-    const handleApplyDuo = (user, boardUUID) => {
+    const handleApplyDuo = async (user, boardUUID) => {
         if (!isUserLoggedIn) {
             setLoginModalOpen(true);
             return;
         }
+
+        try {
+            const alreadyApplied = await checkAlreadyApplied(boardUUID);
+            if (alreadyApplied) {
+                alert('이미 신청한 게시글입니다.');
+                return;
+            }
+        } catch (error) {
+            console.error('중복 신청 체크 실패:', error);
+            // 에러가 발생해도 신청은 진행 (서버에서 한번 더 체크하므로)
+        }
+
         setSelectedUser(user);
         setCurrentBoardUUID(boardUUID);
         setOpenSendModal(true);
@@ -907,7 +919,7 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 whiteSpace: 'nowrap',     // ✅ 텍스트 줄바꿈 방지
             }}>
 
-                <SummonerInfo name={user.name} avatarUrl={user.avatarUrl} tag={user.tag} school={user.school}/>
+                <SummonerInfo name={user.name} avatarUrl={user.avatarUrl} tag={user.tag} school={user.school} verificationType={user.verificationType}/>
             </Box>
             <Box sx={{flex: columns[1], textAlign: 'center'}}>{user.queueType}</Box>
             <Box sx={{flex: columns[2], textAlign: 'center'}}>
@@ -942,7 +954,7 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                     whiteSpace: 'normal',
                     maxHeight: '3.6em'
                 }}>
-                    {user.message}
+                    {user.memo}
                 </Box>
             </Box>
             <Box sx={{
@@ -960,12 +972,16 @@ function DuoItem({user, currentUser, onApplyDuo, onUserClick, onDelete, onEdit})
                 {expiryTime}
             </Box>
             <Box sx={{flex: columns[8], textAlign: 'center'}}>
-                <Button variant="contained" sx={applyBtnStyle} onClick={(e) => {
-                    e.stopPropagation();
-                    onApplyDuo();
-                }}>
-                    신청
-                </Button>
+                {!isMine ? ( // ✅ 내 게시글이 아닐 때만 신청 버튼 표시
+                    <Button variant="contained" sx={applyBtnStyle} onClick={(e) => {
+                        e.stopPropagation();
+                        onApplyDuo();
+                    }}>
+                        신청
+                    </Button>
+                ) : (
+                    <Box sx={{ color: '#666', fontSize: '0.85rem' }}>내 게시글</Box>
+                )}
             </Box>
             <Box sx={{flex: columns[9], textAlign: 'right'}}>
                 {isMine && (

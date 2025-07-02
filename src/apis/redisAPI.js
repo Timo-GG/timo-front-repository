@@ -31,6 +31,16 @@ export const refreshScrimBoard = async () => {
 };
 
 /**
+ * 중복 신청 확인
+ */
+export const checkAlreadyApplied = async (boardUUID) => {
+    const response = await axiosInstance.get(`/matching/mypage/exists/${boardUUID}`, {
+        withAuth: true,
+    });
+    return response.data.data;
+};
+
+/**
  * [Update] 게시글 수정 로직
  */
 export const updateDuoBoard = async (dto) => {
@@ -85,6 +95,7 @@ export const fetchAllDuoBoards = async (page = 0, size = 10) => {
                 name: riot.gameName,
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
+                verificationType: user.verificationType,
                 school: user.univName || '미인증',
                 department: user.department || '',
                 queueType:
@@ -192,6 +203,7 @@ export const fetchScrimBoard = async (boardUUID) => {
         name: riot.gameName,
         tag: riot.tagLine,
         avatarUrl: riot.profileUrl,
+        verificationType: member.verificationType,
         school: member.univName || '미인증',
         department: member.department || '',
         queueType: item.mapCode === 'RIFT' ? '소환사 협곡' : '칼바람 나락',
@@ -239,6 +251,7 @@ export const fetchAllScrimBoards = async (page = 0, size = 10) => {
                 name: riot.gameName,
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
+                verificationType: member.verificationType,
                 school: member.univName || '미인증',
                 department: member.department || '',
                 queueType:
@@ -293,6 +306,7 @@ export const fetchUnivScrimBoards = async (page = 0, size = 10, univName) => {
                 tag: riot.tagLine,
                 avatarUrl: riot.profileUrl,
                 school: member.univName || '미인증',
+                verificationType: member.verificationType,
                 department: member.department || '',
                 queueType:
                     item.mapCode === 'RIFT'
@@ -370,14 +384,24 @@ export const fetchReceivedRequests = async (acceptorId) => {
         {withAuth: true}
     );
     const data = res.data.data;
-    return data.map(item => transformRequestorToFrontend(item));
+    const transformedData = data.map(item => transformRequestorToFrontend(item));
+
+    // ✅ 최신순으로 정렬 추가
+    return transformedData.sort((a, b) => {
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
 };
 
 export const fetchSentRequests = async (requestorId) => {
     const res = await axiosInstance.get(`/matching/mypage/requestor/${requestorId}`,
         {withAuth: true});
     const data = res.data.data;
-    return data.map(item => transformAcceptorToFrontend(item));
+    const transformedData = data.map(item => transformAcceptorToFrontend(item));
+
+    // ✅ 최신순으로 정렬 추가
+    return transformedData.sort((a, b) => {
+        return new Date(b.updatedAt) - new Date(a.updatedAt);
+    });
 };
 
 /**
@@ -439,6 +463,7 @@ const transformRequestorToFrontend = (item) => {
         name: riot.gameName,
         tag: riot.tagLine,
         avatarUrl: riot.profileUrl,
+        verificationType: riot.verificationType,
         school: memberInfo.univName || '미인증',
         department: memberInfo.department || '',
         memo: item.requestorMemo,

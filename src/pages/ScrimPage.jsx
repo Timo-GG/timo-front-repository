@@ -28,7 +28,8 @@ import {
     fetchAllScrimBoards, fetchScrimBoard,
     fetchUnivScrimBoards,
     isExistMyScimBoard,
-    refreshScrimBoard
+    refreshScrimBoard,
+    checkAlreadyApplied
 } from '../apis/redisAPI.js';
 import {
     canRefreshBoard,
@@ -601,7 +602,7 @@ export default function ScrimPage() {
                                         '&:hover': {backgroundColor: '#28282F'}
                                     }}>
                                         <Box width="15%" display="flex">
-                                            <SummonerInfo name={row.name} tag={row.tag} avatarUrl={row.avatarUrl}/>
+                                            <SummonerInfo name={row.name} tag={row.tag} avatarUrl={row.avatarUrl} verificationType={row.verificationType}/>
                                         </Box>
                                         <Box width="10%" textAlign="center">{row.queueType}</Box>
                                         <Box width="10%"
@@ -642,24 +643,45 @@ export default function ScrimPage() {
                                             color: getExpiryColor(row.updatedAt)
                                         }}>{formatTimeUntilExpiry(row.updatedAt)}</Box>
                                         <Box width="10%" textAlign="center">
-                                            <Button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    setSelectedScrim(row);
-                                                    setApplyOpen(true);
-                                                }}
-                                                sx={{
-                                                    backgroundColor: '#424254',
-                                                    color: '#fff',
-                                                    borderRadius: 0.8,
-                                                    fontWeight: 'bold',
-                                                    px: 2,
-                                                    py: { xs: 0.8, sm: 1 },
-                                                    fontSize: { xs: '0.8rem', sm: '0.95rem' },
-                                                    border: '1px solid #71717D'
-                                                }}
-                                            >신청</Button>
+                                            {!isMine ? (
+                                                <Button
+                                                    onClick={async (e) => {
+                                                        e.stopPropagation();
+
+                                                        if (!isUserLoggedIn) {
+                                                            setLoginOpen(true);
+                                                            return;
+                                                        }
+
+                                                        try {
+                                                            const alreadyApplied = await checkAlreadyApplied(row.id);
+                                                            if (alreadyApplied) {
+                                                                alert('이미 신청한 게시글입니다.');
+                                                                return;
+                                                            }
+                                                        } catch (error) {
+                                                            console.error('중복 신청 체크 실패:', error);
+                                                        }
+
+                                                        setSelectedScrim(row);
+                                                        setApplyOpen(true);
+                                                    }}
+                                                    sx={{
+                                                        backgroundColor: '#424254',
+                                                        color: '#fff',
+                                                        borderRadius: 0.8,
+                                                        fontWeight: 'bold',
+                                                        px: 2,
+                                                        py: { xs: 0.8, sm: 1 },
+                                                        fontSize: { xs: '0.8rem', sm: '0.95rem' },
+                                                        border: '1px solid #71717D'
+                                                    }}
+                                                >신청</Button>
+                                            ) : (
+                                                <Box sx={{ color: '#666', fontSize: '0.85rem' }}>내 게시글</Box> // ✅ 내 게시글일 때 표시할 텍스트
+                                            )}
                                         </Box>
+
                                         <Box width="2%" textAlign="center">
                                             {isMine && (
                                                 <>
