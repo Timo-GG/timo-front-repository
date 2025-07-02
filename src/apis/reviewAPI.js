@@ -1,4 +1,5 @@
 import axiosInstance from './axiosInstance';
+import { formatRelativeTime } from '../utils/timeUtils';
 
 /**
  * 평가 페이지 조회 - 모든 평가 데이터
@@ -21,11 +22,9 @@ export const fetchEvaluationData = async (currentUserPuuid) => {
             let isCurrentUserAcceptor = false;
 
             if (acceptorPuuid === currentUserPuuid) {
-                // 현재 유저가 acceptor인 경우
                 otherUser = transformUserInfo(item.requestor, item.requestorId, item.mypageId);
                 isCurrentUserAcceptor = true;
             } else if (requestorPuuid === currentUserPuuid) {
-                // 현재 유저가 requestor인 경우
                 otherUser = transformUserInfo(item.acceptor, item.acceptorId, item.mypageId);
                 isCurrentUserAcceptor = false;
             }
@@ -39,12 +38,16 @@ export const fetchEvaluationData = async (currentUserPuuid) => {
                         mode: 'received',
                         otherUser: otherUser,
                         reviewData: receivedReview,
-                        score: receivedReview.evaluation_score // ✅ score 필드 설정
-
+                        score: receivedReview.evaluation_score,
+                        // ✅ 원본 날짜 데이터 유지 (정렬용)
+                        originalCreatedAt: receivedReview.createdAt || transformedItem.matchingCreatedAt,
+                        createdAt: receivedReview.createdAt ?
+                            formatRelativeTime(receivedReview.createdAt) :
+                            formatRelativeTime(transformedItem.matchingCreatedAt)
                     });
                 }
 
-                // 보낸 리뷰 처리 (항상 표시)
+                // 보낸 리뷰 처리
                 const sentReview = isCurrentUserAcceptor ? item.acceptorReview : item.requestorReview;
                 const hasSentReview = hasReviewContent(sentReview);
 
@@ -53,10 +56,22 @@ export const fetchEvaluationData = async (currentUserPuuid) => {
                     mode: 'sent',
                     otherUser: otherUser,
                     reviewData: sentReview,
-                    reviewStatus: hasSentReview ? 'completed' : 'pending'
+                    reviewStatus: hasSentReview ? 'completed' : 'pending',
+                    // ✅ 원본 날짜 데이터 유지 (정렬용)
+                    originalCreatedAt: transformedItem.matchingCreatedAt,
+                    createdAt: new Date(transformedItem.matchingCreatedAt).toLocaleDateString('ko-KR')
                 });
             }
         });
+    });
+
+    // ✅ 최신순으로 정렬 (내림차순)
+    receivedEvaluations.sort((a, b) => {
+        return new Date(b.originalCreatedAt) - new Date(a.originalCreatedAt);
+    });
+
+    sentEvaluations.sort((a, b) => {
+        return new Date(b.originalCreatedAt) - new Date(a.originalCreatedAt);
     });
 
     return {
@@ -64,6 +79,7 @@ export const fetchEvaluationData = async (currentUserPuuid) => {
         sent: sentEvaluations
     };
 };
+
 
 // 리뷰 내용이 있는지 확인하는 헬퍼 함수
 const hasReviewContent = (review) => {
@@ -76,14 +92,14 @@ const hasReviewContent = (review) => {
 };
 
 const transformEvaluationToFrontend = (item) => {
-    const { mypageId, mapCode, matchingCategory, matchingStatus, reviewStatus } = item;
+    const { mypageId, mapCode, matchingCategory, matchingStatus, reviewStatus, createdAt } = item;
 
     return {
         id: mypageId,
         map: mapCode === 'RANK' ? '랭크' : mapCode === 'NORMAL' ? '일반' : '칼바람',
         type: matchingCategory === 'DUO' ? '듀오' : '내전',
         status: matchingStatus,
-        createdAt: new Date().toLocaleDateString('ko-KR'),
+        matchingCreatedAt: createdAt,
         reviewStatus: reviewStatus, // 백엔드의 ReviewStatus 사용
         score: null // 나중에 받은 리뷰 처리에서 설정됨
     };
