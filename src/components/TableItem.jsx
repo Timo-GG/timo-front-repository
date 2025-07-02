@@ -120,7 +120,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                 }}
             >
                 <Box sx={{ flex: columns[0], display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                    <SummonerInfo name={user.name} tag={user.tag} avatarUrl={user.avatarUrl} />
+                    <SummonerInfo name={user.name} tag={user.tag} avatarUrl={user.avatarUrl} verificationType={user.verificationType}/>
                 </Box>
                 <Box sx={{ flex: columns[1], display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 0 }}>
                     <TierBadge tier={user.tier} score={user.leaguePoint} rank={user.rank} />
