@@ -85,52 +85,79 @@ const useChatStore = create(
                     };
                 }),
 
-
+            // 중복 제거 로직이 추가된 addMessage 함수
             addMessage: (roomId, message) =>
                 set((state) => {
                     const chatList = state.chatList ?? [];
-                    const existingRoom = chatList.find((chat) => chat && chat.id === roomId);
+                    const existingRoomIndex = chatList.findIndex((chat) => chat && chat.id === roomId);
 
-                    if (!existingRoom) {
+                    if (existingRoomIndex === -1) {
+                        // 새 채팅방 생성
+                        const newRoom = {
+                            id: roomId,
+                            messages: [message],
+                            lastMessage: message.text,
+                            lastTime: message.timestamp,
+                            lastMessageTimestamp: new Date(message.timestamp).getTime(),
+                        };
+
+                        // 최신순으로 맨 앞에 추가
                         return {
-                            chatList: [
-                                ...chatList,
-                                {
-                                    id: roomId,
-                                    messages: [message],
-                                },
-                            ],
+                            chatList: [newRoom, ...chatList]
                         };
                     }
 
-                    // 중복 메시지 체크
+                    // 기존 채팅방에서 중복 메시지 검사
+                    const existingRoom = chatList[existingRoomIndex];
                     const existingMessages = existingRoom.messages || [];
-                    const isDuplicate = existingMessages.some(existing =>
-                        existing && message &&
-                        existing.timestamp === message.timestamp &&
-                        existing.text === message.text &&
-                        existing.type === message.type
-                    );
+
+                    // 중복 메시지 검사 로직
+                    const isDuplicate = existingMessages.some(existingMsg => {
+                        // messageId가 있는 경우 우선 비교
+                        if (existingMsg.messageId && message.messageId) {
+                            return existingMsg.messageId === message.messageId;
+                        }
+
+                        // messageId가 없는 경우 내용과 시간으로 비교
+                        if (existingMsg.text === message.text &&
+                            existingMsg.type === message.type) {
+                            // 시간차가 1초 이내인 경우 중복으로 판단
+                            const timeDiff = Math.abs(
+                                new Date(existingMsg.timestamp).getTime() -
+                                new Date(message.timestamp).getTime()
+                            );
+                            return timeDiff < 1000;
+                        }
+
+                        return false;
+                    });
 
                     if (isDuplicate) {
-                        console.log('[중복 메시지 무시]', message.text);
-                        return state; // 중복이면 상태 변경 없음
+                        console.log('[중복 메시지 감지] 추가하지 않음:', message.text);
+                        return state; // 상태 변경 없이 반환
                     }
 
+                    // 기존 채팅방 업데이트
+                    const updatedChatList = [...chatList];
+
+                    // 메시지 추가 및 마지막 메시지 정보 업데이트
+                    const updatedRoom = {
+                        ...existingRoom,
+                        messages: [...existingMessages, message],
+                        lastMessage: message.text,
+                        lastTime: message.timestamp,
+                        lastMessageTimestamp: new Date(message.timestamp).getTime(),
+                    };
+
+                    // 해당 채팅방을 배열에서 제거하고 맨 앞에 추가 (최신순 유지)
+                    updatedChatList.splice(existingRoomIndex, 1);
+                    updatedChatList.unshift(updatedRoom);
+
                     return {
-                        chatList: chatList.map((chat) =>
-                            chat && chat.id === roomId
-                                ? {
-                                    ...chat,
-                                    messages: [...existingMessages, message].sort((a, b) => {
-                                        if (!a?.timestamp || !b?.timestamp) return 0;
-                                        return new Date(a.timestamp) - new Date(b.timestamp);
-                                    })
-                                }
-                                : chat
-                        ),
+                        chatList: updatedChatList
                     };
                 }),
+
         }),
         {
             name: 'chat-storage',

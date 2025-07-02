@@ -26,6 +26,7 @@ export const initializeChatSocket = () => {
 
         const message = {
             type: payload.senderId === userData?.memberId ? 'sent' : 'received',
+            messageId: payload.messageId,
             text: payload.content,
             timestamp: payload.timestamp || new Date().toISOString(),
         };

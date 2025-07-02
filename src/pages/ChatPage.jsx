@@ -142,6 +142,7 @@ export default function ChatPage() {
                 .then((rawMessages) => {
                     const formatted = rawMessages.map(msg => ({
                         type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        messageId: msg.messageId,
                         text: msg.content,
                         timestamp: msg.timestamp,
                     }));
@@ -167,32 +168,21 @@ export default function ChatPage() {
         }
     }, [selectedChatId, page, hasMore, updateMessages, userData?.memberId]);
 
-    // ✅ 메시지 전송 최적화 - 낙관적 업데이트
     const handleSendMessage = useCallback(() => {
         const trimmedInput = chatInput?.trim();
         if (!trimmedInput || !selectedChatId) return;
 
-        // 낙관적 업데이트: 즉시 UI에 표시
-        const optimisticMessage = {
-            type: 'sent',
-            text: trimmedInput,
-            timestamp: new Date().toISOString(),
-            id: `temp-${Date.now()}`,
-            isOptimistic: true
-        };
+        setChatInput(''); // 입력창만 즉시 비우기
 
-        addMessage(selectedChatId, optimisticMessage);
-        setChatInput(''); // 즉시 입력창 비우기
-
-        // 서버 전송
         const socket = getSocket();
-        if (socket) {
+        if (socket && socket.connected) {
             socket.emit('send_message', {
                 roomId: selectedChatId,
                 content: trimmedInput,
             });
+            // 서버에서 receive_message 이벤트로 메시지가 올 것임 (내 메시지 필터링 제거)
         }
-    }, [chatInput, selectedChatId, addMessage]);
+    }, [chatInput, selectedChatId]);
 
     const handleDelete = useCallback(async (id) => {
         try {
@@ -227,6 +217,7 @@ export default function ChatPage() {
                 const formatted = rawMessages
                     .map(msg => ({
                         type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        messageId: msg.messageId,
                         text: msg.content,
                         timestamp: msg.timestamp,
                     }))
@@ -239,6 +230,7 @@ export default function ChatPage() {
             if (newMessages.length > 0) {
                 const formatted = newMessages.map(msg => ({
                     type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                    messageId: msg.messageId,
                     text: msg.content,
                     timestamp: msg.timestamp,
                 }));
@@ -271,6 +263,7 @@ export default function ChatPage() {
         }
     }, [selectedChat?.messages?.length]); // 길이만 의존성으로
 
+    // ✅ useEffect에서 채팅방 목록 정렬 추가
     useEffect(() => {
         fetchChatRooms()
             .then((response) => {
@@ -298,8 +291,12 @@ export default function ChatPage() {
                             lastTimeFormatted: room.lastMessageTime ?
                                 formatRelativeTime(room.lastMessageTime) : '',
                             unreadCount: room.unreadCount || 0,
+                            // ✅ 정렬을 위한 timestamp 추가
+                            lastMessageTimestamp: room.lastMessageTime ? new Date(room.lastMessageTime).getTime() : 0,
                         };
-                    });
+                    })
+                    // ✅ 최신순 정렬 (내림차순) - 가장 최근 메시지가 위로
+                    .sort((a, b) => b.lastMessageTimestamp - a.lastMessageTimestamp);
 
                 setChatList(formatted);
             })
@@ -308,6 +305,34 @@ export default function ChatPage() {
                 setChatList([]);
             });
     }, []); // 빈 의존성 배열로 한 번만 실행
+    useEffect(() => {
+        const socket = getSocket();
+        if (!socket) return;
+
+        socket.removeAllListeners('receive_message');
+
+        const handleReceiveMessage = (eventData) => {
+            console.log('[실시간 메시지 수신]', eventData);
+
+            const messageData = eventData.payload;
+            const senderId = messageData.senderId;
+            const currentUserId = userData?.memberId;
+
+            // ✅ 내 메시지 필터링 제거 - 모든 메시지 처리
+            const newMessage = {
+                type: senderId === currentUserId ? 'sent' : 'received',
+                messageId: messageData.messageId,
+                text: messageData.content,
+                timestamp: messageData.timestamp || new Date().toISOString(),
+            };
+
+            addMessage(eventData.roomId, newMessage);
+        };
+
+        socket.on('receive_message', handleReceiveMessage);
+
+        return () => socket.off('receive_message', handleReceiveMessage);
+    }, [addMessage, userData?.memberId]);
 
     useEffect(() => {
         if (!selectedChatId) return;
@@ -325,11 +350,36 @@ export default function ChatPage() {
         setHasMore(true);
         isInitialLoad.current = true;
 
+        const currentChat = safeChatList.find(chat => chat.id === selectedChatId);
+        if (currentChat && currentChat.unreadCount > 0) {
+            // unreadCount를 0으로 업데이트
+            const updatedChatList = safeChatList.map(chat =>
+                chat.id === selectedChatId
+                    ? { ...chat, unreadCount: 0 }
+                    : chat
+            );
+            setChatList(updatedChatList);
+
+            const lastMessage = currentChat.messages?.slice(-1)[0];
+            const lastMessageId = lastMessage?.messageId || null;
+            console.log('[ChatPage] 마지막 메시지 ID:', lastMessageId);
+
+            if (socket && socket.connected) {
+                socket.emit('read_message', {
+                    roomId: selectedChatId,
+                    messageId: lastMessageId
+                });
+            } else {
+                console.error('[읽음 처리] 소켓이 연결되지 않음');
+            }
+        }
+
         fetchChatMessages(selectedChatId, 0)
             .then((rawMessages) => {
                 const formatted = rawMessages
                     .map(msg => ({
                         type: msg.senderId === userData?.memberId ? 'sent' : 'received',
+                        messageId: msg.messageId,
                         text: msg.content,
                         timestamp: msg.timestamp,
                     }))
@@ -343,7 +393,7 @@ export default function ChatPage() {
         return () => {
             leaveChatRoom(selectedChatId);
         };
-    }, [selectedChatId]); // 최소 의존성
+    }, [selectedChatId, safeChatList, setChatList]); // 최소 의존성
 
     useEffect(() => {
         const handleVisibilityChange = () => {
@@ -367,16 +417,13 @@ export default function ChatPage() {
     }, [selectedChatId, syncMissedMessages]);
 
     useEffect(() => {
-        initializeChatSocket();
-    }, []);
-
-    useEffect(() => {
         const container = chatContainerRef.current;
         if (!container) return;
 
         container.addEventListener('scroll', handleScroll);
         return () => container.removeEventListener('scroll', handleScroll);
     }, [handleScroll]);
+
 
     // ✅ 렌더링 최적화 - 컴포넌트 분리
     const renderChatListItem = useCallback((chat) => (
@@ -396,16 +443,41 @@ export default function ChatPage() {
         >
             <Box sx={{display: 'flex', justifyContent: 'space-between', mb: 1}}>
                 <SummonerInfo {...chat.user} />
-                <IconButton
-                    size="small"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
-                    }}
-                >
-                    <MoreVertIcon sx={{color: '#aaa'}}/>
-                </IconButton>
+
+                {/* ✅ 읽지 않은 메시지 배지 추가 */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {chat.unreadCount > 0 && (
+                        <Box
+                            sx={{
+                                backgroundColor: '#ff4444',
+                                color: '#fff',
+                                borderRadius: '50%',
+                                minWidth: 20,
+                                height: 20,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: 12,
+                                fontWeight: 'bold'
+                            }}
+                        >
+                            {chat.unreadCount > 99 ? '99+' : chat.unreadCount}
+                        </Box>
+                    )}
+
+                    <IconButton
+                        size="small"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setAnchorEls(prev => ({...prev, [chat.id]: e.currentTarget}));
+                        }}
+                    >
+                        <MoreVertIcon sx={{color: '#aaa'}}/>
+                    </IconButton>
+                </Box>
             </Box>
+
+            {/* 메뉴와 메시지 내용은 기존과 동일 */}
             <Menu
                 anchorEl={anchorEls[chat.id]}
                 open={Boolean(anchorEls[chat.id])}
@@ -418,13 +490,19 @@ export default function ChatPage() {
                     나가기
                 </MenuItem>
             </Menu>
+
             <Box sx={{display: 'flex', justifyContent: 'space-between'}}>
-                <Typography fontSize={14} color="#aaa" sx={{
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '70%'
-                }}>
+                <Typography
+                    fontSize={14}
+                    color={chat.unreadCount > 0 ? "#fff" : "#aaa"} // ✅ 읽지 않은 메시지가 있으면 하얀색
+                    fontWeight={chat.unreadCount > 0 ? "bold" : "normal"} // ✅ 읽지 않은 메시지가 있으면 굵게
+                    sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '70%'
+                    }}
+                >
                     {chat.lastMessage}
                 </Typography>
                 <Typography fontSize={14} color="#666">
@@ -433,6 +511,7 @@ export default function ChatPage() {
             </Box>
         </Box>
     ), [selectedChatId, anchorEls, handleChatRoomClick]);
+
 
     const renderMessages = useCallback(() => (
         <Box ref={chatContainerRef} sx={{flex: 1, p: 2, overflowY: 'auto'}}>
