@@ -72,6 +72,8 @@ export default function MySettingPage() {
     const [notificationEmailError, setNotificationEmailError] = useState('');
     const [notificationEmailStatus, setNotificationEmailStatus] = useState('');
 
+    const [hasProcessedRSO, setHasProcessedRSO] = useState(false);
+
     const navigate = useNavigate();
 
 
@@ -88,34 +90,17 @@ export default function MySettingPage() {
             const isLinkMode = localStorage.getItem('riotLinkMode') === 'true';
 
             if (code && isLinkMode) {
-                try {
-                    await linkRiotAccount(code);
-                    localStorage.removeItem('riotLinkMode');
+                localStorage.removeItem('riotLinkMode');
 
-                    // 프로필 정보 갱신
-                    const { data: profile } = await getMyInfo();
-                    setUserData(profile);
-
-                    // ✅ rankAPI.js의 함수 사용
-                    if (profile.riotAccount?.verificationType === 'RSO_VERIFIED') {
-                        try {
-                            await updateVerificationType('RSO_VERIFIED');
-                            console.log('랭킹 verificationType 업데이트 완료');
-                        } catch (error) {
-                            console.error('랭킹 verificationType 업데이트 실패:', error);
-                        }
-                    }
-
-                    setSummonerStatusMsg('✔️ 소환사 계정 연동 완료');
-                } catch (error) {
-                    console.error('OAuth 연동 실패:', error);
-                    setSummonerStatusMsg('소환사 계정 연동에 실패했습니다.');
-                }
+                window.history.replaceState({}, document.title, window.location.pathname);
             }
         };
 
         handleOAuthCallback();
     }, []);
+
+
+
 
     // ━━━━━━━━━━━ userData 로부터 초기값 세팅 ━━━━━━━━━━━
     useEffect(() => {
