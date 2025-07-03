@@ -439,7 +439,7 @@ export default function MySettingPage() {
                 <Typography color="text.secondary" sx={{mb: 1}}>소환사 이름</Typography>
 
                 {/* NONE 상태: 두 가지 옵션 모두 표시 */}
-                {verificationType === 'NONE' && (
+                {(verificationType === 'NONE' || !verificationType) && (
                     <>
                         {/* 기존 API 파싱 방식 */}
                         <Box sx={{display: 'flex', height: '56px', mb: 2}}>
