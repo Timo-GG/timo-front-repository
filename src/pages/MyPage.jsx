@@ -65,7 +65,7 @@ export default function MyPage({defaultTab, initialRoomId}) {
         if (user.type === '듀오') {
             setSelectedUser(user);
         } else if (user.type === '내전') {
-            setSelectedScrim(user);
+            setSelectedScrim(user.originalData || user);
         }
     };
 
@@ -180,7 +180,12 @@ export default function MyPage({defaultTab, initialRoomId}) {
                                     ) : (
                                         sentUsers.map(user => (
                                             <Box key={user.id}>
-                                                <TableItem user={user} onRowClick={handleRowClick} received={false}/>
+                                                <TableItem
+                                                    user={user}
+                                                    onRowClick={handleRowClick}
+                                                    received={false}
+                                                    onRequestUpdate={refetchSent}
+                                                />
                                             </Box>
                                         ))
                                     )}
@@ -272,8 +277,11 @@ export default function MyPage({defaultTab, initialRoomId}) {
                 />
             )}
             {selectedScrim && (
-                <ScrimRequestModal open handleClose={() => setSelectedScrim(null)} partyId={selectedScrim.id}
-                                   scrims={[selectedScrim]}/>
+                <ScrimRequestModal
+                    open
+                    handleClose={() => setSelectedScrim(null)}
+                    scrimData={selectedScrim}
+                />
             )}
             <ReviewModal
                 open={Boolean(reviewUser)}

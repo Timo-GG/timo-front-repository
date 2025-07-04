@@ -589,8 +589,16 @@ export const acceptMatchingRequest = async (myPageUUID) => {
     });
     return response.data;
 };
+
 export const rejectMatchingRequest = async (myPageUUID) => {
     const response = await axiosInstance.get(`/matching/event/reject/${myPageUUID}`, {
+        withAuth: true,
+    });
+    return response.data;
+};
+
+export const cancelMatchingRequest = async (myPageUUID) => {
+    const response = await axiosInstance.delete(`/matching/event/cancel/${myPageUUID}`, {
         withAuth: true,
     });
     return response.data;

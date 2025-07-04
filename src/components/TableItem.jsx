@@ -7,13 +7,11 @@ import WinRateBar from './WinRateBar';
 import ChampionIconList from './champion/ChampionIconList';
 import TruncatedMessageBox from './TruncatedMessageBox';
 import ScrimRequestModal from './scrim/ScrimRequestModal';
-import { acceptMatchingRequest, rejectMatchingRequest } from '../apis/redisAPI';
+import { acceptMatchingRequest, rejectMatchingRequest, cancelMatchingRequest } from '../apis/redisAPI';
 import {formatRelativeTime} from '../utils/timeUtils';
 
-export default function TableItem({ received, user, onRequestUpdate }) {
+export default function TableItem({ received, user, onRequestUpdate, onRowClick }) {
     const [isLoading, setIsLoading] = useState(false);
-    const [scrimModalOpen, setScrimModalOpen] = useState(false);
-    const [scrimModalData, setScrimModalData] = useState(null);
     const navigate = useNavigate();
     const columns = [1.5, 1, 1.5, 1.5, 2, 0.5, 1, 1.5];
 
@@ -61,34 +59,25 @@ export default function TableItem({ received, user, onRequestUpdate }) {
         if (isLoading) return;
 
         setIsLoading(true);
+
         try {
-            await rejectMatchingRequest(user.id);
+            // 1. API 요청을 먼저 보내고 성공할 때까지 기다립니다.
+            await cancelMatchingRequest(user.id);
             console.log('요청이 취소되었습니다.');
+
+            // 2. ✨ API 요청이 성공하면, 부모에게 '목록을 새로고침 하라'고 알립니다.
+            //    (이제 인자 없이 호출합니다.)
             if (onRequestUpdate) {
                 onRequestUpdate();
             }
+
         } catch (error) {
             console.error('취소 중 오류가 발생했습니다:', error);
+            // 사용자에게 에러 알림을 보여주는 로직을 추가하면 더 좋습니다.
+            // ex) alert('요청 취소에 실패했습니다.');
+
         } finally {
             setIsLoading(false);
-        }
-    };
-
-    // 내전 요청인 경우 모달 열기
-    const handleScrimModalOpen = (event) => {
-        event.stopPropagation();
-        if (user.type === '내전') {
-            // 원본 API 데이터를 모달에 전달
-            setScrimModalData(user.originalData || user);
-            setScrimModalOpen(true);
-        }
-    };
-
-    // 행 클릭 핸들러
-    const handleRowClick = () => {
-        if (user.type === '내전') {
-            setScrimModalData(user.originalData || user);
-            setScrimModalOpen(true);
         }
     };
 
@@ -105,7 +94,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
     return (
         <>
             <Box
-                onClick={handleRowClick}
+                onClick={() => onRowClick(user)}
                 sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -116,7 +105,7 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                     transition: 'background-color 0.2s',
                     '&:hover': { backgroundColor: '#2E2E38' },
                     minWidth: { xs: '900px', sm: 'auto' },
-                    cursor: user.type === '내전' ? 'pointer' : 'default',
+                    cursor: (user.type === '내전' || user.type === '듀오') ? 'pointer' : 'default',
                 }}
             >
                 <Box sx={{ flex: columns[0], display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
@@ -212,13 +201,6 @@ export default function TableItem({ received, user, onRequestUpdate }) {
                     )}
                 </Box>
             </Box>
-
-            {/* 내전 모달 */}
-            <ScrimRequestModal
-                open={scrimModalOpen}
-                handleClose={() => setScrimModalOpen(false)}
-                scrimData={scrimModalData}
-            />
         </>
     );
 }
