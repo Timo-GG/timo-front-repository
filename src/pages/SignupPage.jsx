@@ -7,6 +7,7 @@ import {
     useTheme,
     Checkbox,
     FormControlLabel,
+    CircularProgress,
     Paper,
     List,
     ListItem,
@@ -46,6 +47,8 @@ export default function SignupPage() {
     const [university, setUniversity] = useState('');
     const [schoolEmail, setSchoolEmail] = useState('');
     const [verificationCode, setVerificationCode] = useState('');
+
+    const [isSending, setIsSending] = useState(false);
 
     const [emailError, setEmailError] = useState('');
     const [verificationError, setVerificationError] = useState('');
@@ -390,7 +393,7 @@ export default function SignupPage() {
             return;
         }
         setEmailError('');
-
+        setIsSending(true);
         try {
             const res = await requestUnivVerification({univName: university, univEmail: schoolEmail});
             if (res.success) {
@@ -415,6 +418,8 @@ export default function SignupPage() {
                 console.error('요청 설정 중 예외 발생:', error.message);
                 setEmailError('예기치 못한 오류가 발생했습니다.');
             }
+        }finally {
+            setIsSending(false);
         }
     }, [university, schoolEmail, isUniversityVerified]);
 
@@ -422,7 +427,6 @@ export default function SignupPage() {
     const handleVerificationConfirm = useCallback(async () => {
         try {
             await verifyUnivCode(verificationCode, {univName: university, univEmail: schoolEmail});
-            await updateUnivAccount({univName: university, univEmail: schoolEmail});
             const {data: profile} = await getMyInfo()
             setUserData(profile);
             setIsUniversityVerified(true);
@@ -1009,7 +1013,7 @@ export default function SignupPage() {
                     {!isUniversityVerified && (
                         <Button
                             onClick={handleEmailRegister}
-                            disabled={!isUniversityValid}
+                            disabled={!isUniversityValid || isSending}
                             sx={{
                                 height: '100%',
                                 borderRadius: '0 12px 12px 0',
@@ -1021,7 +1025,7 @@ export default function SignupPage() {
                                 minWidth: '80px',
                             }}
                         >
-                            등록
+                            {'등록'}
                         </Button>
                     )}
                 </Box>
@@ -1046,50 +1050,58 @@ export default function SignupPage() {
 
 
             {/* 인증 코드 */}
-            {showVerificationInput && (
-                <Box>
-                    <Typography color="text.secondary" mb={1}>인증 코드</Typography>
-                    <Box sx={{display: 'flex', height: '56px'}}>
-                        <TextField
-                            fullWidth
-                            value={verificationCode}
-                            onChange={(e) => {
-                                setVerificationCode(e.target.value);
-                                setVerificationError('');
-                            }}
-                            variant="outlined"
-                            placeholder="인증 코드를 입력하세요"
-                            error={Boolean(verificationError)}
-                            helperText={verificationError}
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    height: '100%',
-                                    borderRadius: '12px 0 0 12px',
-                                    backgroundColor: theme.palette.background.input,
-                                    border: `1px solid ${theme.palette.border.main}`,
-                                    '& fieldset': {borderColor: 'transparent'},
-                                    '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
-                                },
-                            }}
-                        />
-                        <Button
-                            onClick={handleVerificationConfirm}
-                            sx={{
-                                height: '100%',
-                                borderRadius: '0 12px 12px 0',
-                                backgroundColor: theme.palette.background.input,
-                                color: theme.palette.text.secondary,
-                                border: `1px solid ${theme.palette.border.main}`,
-                                borderLeft: 'none',
-                                px: 3,
-                                minWidth: '80px',
-                            }}
-                        >
-                            확인
-                        </Button>
-                    </Box>
-                </Box>
-            )}
+            <Box sx={{ minHeight: '96px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {isSending ? (
+                    // 1. isSending이 true이면 로딩 스피너를 보여줍니다.
+                    <CircularProgress />
+                ) : (
+                    // 2. isSending이 false이고 showVerificationInput이 true이면 인증 코드 입력창을 보여줍니다.
+                    showVerificationInput && (
+                        <Box sx={{ width: '100%' }}>
+                            <Typography color="text.secondary" mb={1}>인증 코드</Typography>
+                            <Box sx={{display: 'flex', height: '56px'}}>
+                                <TextField
+                                    fullWidth
+                                    value={verificationCode}
+                                    onChange={(e) => {
+                                        setVerificationCode(e.target.value);
+                                        setVerificationError('');
+                                    }}
+                                    variant="outlined"
+                                    placeholder="인증 코드를 입력하세요"
+                                    error={Boolean(verificationError)}
+                                    helperText={verificationError}
+                                    sx={{
+                                        '& .MuiOutlinedInput-root': {
+                                            height: '100%',
+                                            borderRadius: '12px 0 0 12px',
+                                            backgroundColor: theme.palette.background.input,
+                                            border: `1px solid ${theme.palette.border.main}`,
+                                            '& fieldset': {borderColor: 'transparent'},
+                                            '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
+                                        },
+                                    }}
+                                />
+                                <Button
+                                    onClick={handleVerificationConfirm}
+                                    sx={{
+                                        height: '100%',
+                                        borderRadius: '0 12px 12px 0',
+                                        backgroundColor: theme.palette.background.input,
+                                        color: theme.palette.text.secondary,
+                                        border: `1px solid ${theme.palette.border.main}`,
+                                        borderLeft: 'none',
+                                        px: 3,
+                                        minWidth: '80px',
+                                    }}
+                                >
+                                    확인
+                                </Button>
+                            </Box>
+                        </Box>
+                    )
+                )}
+            </Box>
 
             {/* 다음 버튼 */}
             <Button

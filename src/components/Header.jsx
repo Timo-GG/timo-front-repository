@@ -177,17 +177,17 @@ export default function Header() {
                                         }}
                                         onClick={() => navigate('/')}  // 클릭 시 메인 페이지로 이동
                                     />                                    <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-                                        <BarChartIcon sx={{fontSize: 20, color: '#aaa'}}/>
-                                        <Typography
-                                            variant="body2"
-                                            sx={{
-                                                color: '#aaa',
-                                                fontSize: {xs: '0.75rem', sm: '0.875rem'},  // 모바일용 조금 줄임
-                                                lineHeight: {xs: 1.2, sm: 1.4},             // 모바일에서 약간 더 조밀하게
-                                            }}
-                                        >
-                                            현재 접속중 <span style={{color: '#ff5b5b'}}>{onlineCount}</span>
-                                        </Typography>
+                                        {/*<BarChartIcon sx={{fontSize: 20, color: '#aaa'}}/>*/}
+                                        {/*<Typography*/}
+                                        {/*    variant="body2"*/}
+                                        {/*    sx={{*/}
+                                        {/*        color: '#aaa',*/}
+                                        {/*        fontSize: {xs: '0.75rem', sm: '0.875rem'},  // 모바일용 조금 줄임*/}
+                                        {/*        lineHeight: {xs: 1.2, sm: 1.4},             // 모바일에서 약간 더 조밀하게*/}
+                                        {/*    }}*/}
+                                        {/*>*/}
+                                        {/*    현재 접속중 <span style={{color: '#ff5b5b'}}>{onlineCount}</span>*/}
+                                        {/*</Typography>*/}
                                     </Box>
                                 </Box>
 

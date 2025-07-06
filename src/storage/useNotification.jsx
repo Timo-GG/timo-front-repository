@@ -2,25 +2,23 @@ import { create } from 'zustand';
 
 const useNotificationStore = create((set) => ({
     notifications: [],
-    addNotification: (notification) =>
+    addNotification: (newNoti) => set((state) => {
+        // 스토어에 추가하려는 알림과 같은 id를 가진 알림이 이미 있는지 확인합니다.
+        // SSE로 받는 실시간 알림은 id가 null일 수 있으므로, id가 있을 때만 체크합니다.
+        const isDuplicate = newNoti.id != null && state.notifications.some(noti => noti.id === newNoti.id);
 
-        set((state) => ({
+        if (!isDuplicate) {
+            return { notifications: [newNoti, ...state.notifications] };
+        }
 
-            notifications: [
-                ...state.notifications,
-                {
-                    id: notification.id || '',  // 서버 id 우선, 없으면 로컬 id
-                    message: notification.message,
-                    redirectUrl: notification.redirectUrl || '',
-                    time: notification.regDate ? new Date(notification.regDate) : new Date()
-                },
-            ],
-        })),
+        return state;
+    }),
+
+    removeNotification: (id) => set((state) => ({
+        notifications: state.notifications.filter((noti) => noti.id !== id),
+    })),
+
     clearNotifications: () => set({ notifications: [] }),
-    removeNotification: (id) =>
-        set((state) => ({
-            notifications: state.notifications.filter((n) => n.id !== id),
-        })),
 }));
 
 export default useNotificationStore;

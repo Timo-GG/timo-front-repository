@@ -3,6 +3,7 @@ import {
     Box,
     Typography,
     TextField,
+    CircularProgress,
     Button,
     Paper,
     useTheme,
@@ -73,7 +74,8 @@ export default function MySettingPage() {
     const [notificationEmailStatus, setNotificationEmailStatus] = useState('');
 
     const [hasProcessedRSO, setHasProcessedRSO] = useState(false);
-
+    const [isVerifying, setIsVerifying] = useState(false);
+    const [isSending, setIsSending] = useState(false);
     const navigate = useNavigate();
 
 
@@ -82,25 +84,6 @@ export default function MySettingPage() {
         localStorage.setItem('riotLinkMode', 'true');
         window.location.href = `https://auth.riotgames.com/authorize?client_id=${import.meta.env.VITE_RIOT_CLIENT_ID}&redirect_uri=${import.meta.env.VITE_RIOT_REDIRECT_URI}&response_type=code&scope=openid&prompt=login`;
     };
-
-    useEffect(() => {
-        const handleOAuthCallback = async () => {
-            const urlParams = new URLSearchParams(window.location.search);
-            const code = urlParams.get('code');
-            const isLinkMode = localStorage.getItem('riotLinkMode') === 'true';
-
-            if (code && isLinkMode) {
-                localStorage.removeItem('riotLinkMode');
-
-                window.history.replaceState({}, document.title, window.location.pathname);
-            }
-        };
-
-        handleOAuthCallback();
-    }, []);
-
-
-
 
     // ━━━━━━━━━━━ userData 로부터 초기값 세팅 ━━━━━━━━━━━
     useEffect(() => {
@@ -296,6 +279,7 @@ export default function MySettingPage() {
         }
         setEmailError('');
 
+        setIsSending(true);
         try {
             const res = await requestUnivVerification({univName, univEmail});
             if (res.success) {
@@ -315,25 +299,43 @@ export default function MySettingPage() {
             } else {
                 setEmailError('네트워크 오류가 발생했습니다.');
             }
+        }finally {
+            setIsSending(false);
         }
     }
 
     // ━━━━━━━━━━━ 인증 코드 확인 핸들러 ━━━━━━━━━━━
     async function handleVerificationConfirm() {
         setVerificationError('');
+        setIsVerifying(true);
         try {
-            await verifyUnivCode(verificationCode, {univName, univEmail});
-            await updateUnivAccount({univName, univEmail});
+            await verifyUnivCode(verificationCode, { univName, univEmail });
+
+            // --- 인증 성공 후 로직 ---
             setIsUnivEmailVerified(true);
             setShowUnivCodeInput(false);
             setIsUnivEmailSent(false);
             setEmailError('');
+
             // 프로필 동기화
-            const {data: profile} = await getMyInfo();
+            const { data: profile } = await getMyInfo();
             setUserData(profile);
             setUnivNameStatus('✔️ 학교 이메일 인증 완료');
+
+            if (profile.riotAccount?.puuid) {
+                try {
+                    await registerRanking(profile.riotAccount.puuid);
+                    console.log('✅ 대학 인증 후, 기존 소환사 정보로 랭킹 등록 완료');
+                } catch (e) {
+                    console.error('⚠️ 대학 인증 후 랭킹 등록 실패', e);
+                    // 필요하다면 사용자에게 실패 알림을 표시할 수 있습니다.
+                }
+            }
+
         } catch {
             setVerificationError('인증 코드가 올바르지 않거나 만료되었습니다.');
+        } finally {
+            setIsVerifying(false);
         }
     }
 
@@ -979,7 +981,7 @@ export default function MySettingPage() {
                                 />
                                 <Button
                                     onClick={handleEmailRegister}
-                                    disabled={!isUnivNameValid}
+                                    disabled={!isUnivNameValid || isSending}
                                     sx={{
                                         height: '100%',
                                         borderRadius: '0 12px 12px 0',
@@ -1002,11 +1004,18 @@ export default function MySettingPage() {
                         </Box>
                     )}
 
+                    {isSending && (
+                        <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                            <CircularProgress />
+                        </Box>
+                    )}
+
                     {/* ───────────────────────────────── 인증 코드 입력 ───────────────────────────────── */}
-                    {showUnivCodeInput && !isUnivEmailVerified && (
-                        <Box sx={{mt: 2}}>
-                            <Typography color="text.secondary" sx={{mb: 1}}>인증 코드</Typography>
-                            <Box sx={{display: 'flex', height: '56px'}}>
+                    {!isSending && showUnivCodeInput && !isUnivEmailVerified && (
+                        <Box sx={{ minHeight: '96px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Box sx={{ width: '100%' }}>
+                            <Typography color="text.secondary" sx={{ mb: 1 }}>인증 코드</Typography>
+                            <Box sx={{ display: 'flex', height: '56px' }}>
                                 <TextField
                                     fullWidth
                                     placeholder="인증 코드를 입력하세요"
@@ -1024,8 +1033,8 @@ export default function MySettingPage() {
                                             borderRadius: '12px 0 0 12px',
                                             backgroundColor: theme.palette.background.input,
                                             border: `1px solid ${theme.palette.border.main}`,
-                                            '& fieldset': {borderColor: 'transparent'},
-                                            '& input': {color: theme.palette.text.primary, padding: '12px 14px'},
+                                            '& fieldset': { borderColor: 'transparent' },
+                                            '& input': { color: theme.palette.text.primary, padding: '12px 14px' },
                                         }
                                     }}
                                 />
@@ -1045,6 +1054,8 @@ export default function MySettingPage() {
                                     확인
                                 </Button>
                             </Box>
+                        </Box>
+
                         </Box>
                     )}
 
