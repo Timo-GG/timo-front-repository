@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { socialLogin, getMyInfo } from '../apis/authAPI';
 import useAuthStore from '../storage/useAuthStore';
-import { linkRiotAccount } from '../apis/accountAPI';
+import {linkRiotAccount, registerRanking} from '../apis/accountAPI';
+import {deleteMyRanking} from "../apis/rankAPI.js";
 
 export default function AuthCallback() {
     const { provider } = useParams();
@@ -96,19 +97,49 @@ export default function AuthCallback() {
 
         const handleRiotLink = async (code) => {
             try {
-                console.log('🔗 Riot 계정 연동 처리 시작');
+                // 1. 책임: 백엔드에 '계정 정보 변경'만을 요청합니다.
+                console.log('🔗 1. 계정 정보 연동을 요청합니다.');
                 await linkRiotAccount(code);
-                console.log('✅ linkRiotAccount 완료');
+                console.log('✅ 1. 계정 정보 연동 완료.');
 
-                const userInfo = await getMyInfo();
-                setUserData(userInfo.data);
-                console.log('✅ 사용자 정보 업데이트 완료');
+                // 2. 책임: '기존 랭킹 삭제' API를 호출합니다.
+                console.log('🔗 2. 기존 랭킹 삭제를 요청합니다.');
+                try {
+                    await deleteMyRanking();
+                    console.log('✅ 2. 기존 랭킹이 성공적으로 삭제되었습니다.');
+                } catch (e) {
+                    // 기존 랭킹이 없는 경우 실패할 수 있으므로, 경고만 하고 넘어갑니다.
+                    console.warn('⚠️ 2. 삭제할 기존 랭킹이 없거나 삭제에 실패했습니다 (무시하고 진행):', e);
+                }
+
+                // 3. 책임: '최신 회원 정보'를 다시 가져옵니다. (새로운 puuid를 확보하기 위함)
+                console.log('🔗 3. 새로운 puuid를 포함한 최신 회원 정보를 가져옵니다.');
+                const { data: updatedProfile } = await getMyInfo();
+                console.log('✅ 3. 최신 회원 정보 수신 완료.');
+
+                // 4. 책임: 학교 인증이 되어있다면, '신규 랭킹 등록' API를 호출합니다.
+                if (updatedProfile.certifiedUnivInfo && updatedProfile.riotAccount?.puuid) {
+                    console.log('🔗 4. 새로운 계정으로 랭킹 등록을 요청합니다.');
+                    try {
+                        await registerRanking(updatedProfile.riotAccount.puuid);
+                        console.log('✅ 4. 새로운 랭킹이 성공적으로 등록되었습니다.');
+                    } catch (e) {
+                        console.error('❌ 4. 새로운 랭킹 등록에 실패했습니다:', e);
+                        // 사용자에게 실패 사실을 알려주는 것이 좋습니다.
+                        alert('계정은 연동되었으나, 랭킹 등록에 실패했습니다. 잠시 후 다시 시도해주세요.');
+                    }
+                }
+
+                // 5. 책임: 최종적으로 업데이트된 상태를 전역 스토어에 반영합니다.
+                setUserData(updatedProfile);
+                console.log('✅ 5. 모든 과정 완료. 전역 상태를 업데이트합니다.');
 
                 localStorage.removeItem('riotLinkMode');
                 alert('Riot 계정 연동이 완료되었습니다!');
                 navigate('/mysetting');
+
             } catch (error) {
-                console.error('❌ Riot 계정 연동 실패:', error);
+                console.error('❌ Riot 계정 연동 과정 중 오류 발생:', error);
                 alert('계정 연동에 실패했습니다.');
                 localStorage.removeItem('riotLinkMode');
                 navigate('/mysetting');
