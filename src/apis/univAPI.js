@@ -11,7 +11,7 @@ export const requestUnivVerification = async ({ univName, univEmail }) => {
 
 export const verifyUnivCode = async (code, { univName, univEmail }) => {
   const response = await axiosInstance.post(
-      `/auth/univ/verify?code=${code}`,
+      `/auth/univ/verify/me?code=${code}`,
       { univName, univEmail },
       { withAuth: true }
   );
