@@ -17,8 +17,8 @@ export default function MatchHistoryModal({ open, onClose, matchData }) {
 
     // matchSummaries → 화면용 객체
     const matches = matchSummaries.map(m => ({
-        result: m.win ? '승리' : '패배',
-        resultColor: m.win ? '#3F6E8C' : '#8C4949',
+        result: m.isWin ? '승리' : '패배',
+        resultColor: m.isWin ? '#3F6E8C' : '#8C4949',
         kda: `${m.kills} / ${m.deaths} / ${m.assists}`,
         champion: m.championIconUrl,
         level: m.championLevel,
